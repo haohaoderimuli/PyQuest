@@ -1,0 +1,2913 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0b0f14">
+<meta name="description" content="蛇之塔 · PyQuest —— 31 关 Python 闯关游戏，从 print 到 pandas 分析和 matplotlib 画图，代码在浏览器里真跑。">
+<title>蛇之塔 · Python 闯关</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiI+PHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiByeD0iNyIgZmlsbD0iIzM3NzZhYiIvPjxwYXRoIGQ9Ik0xMS41IDI0LjVWOGg1LjJhNC40IDQuNCAwIDAgMSAwIDguOGgtMy42IiBmaWxsPSJub25lIiBzdHJva2U9IiNmZmQ0M2IiIHN0cm9rZS13aWR0aD0iMy40IiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz48L3N2Zz4=">
+<style>
+  :root{
+    --bg:#0b0f14;
+    --bg2:#0f151d;
+    --panel:#121a24;
+    --panel2:#0d141b;
+    --line:#1f2c3a;
+    --line2:#2c3d50;
+    --ink:#dce7f2;
+    --ink2:#93a7bb;
+    --ink3:#5f7388;
+    --yellow:#ffd43b;
+    --yellow2:#ffc107;
+    --blue:#4b9fe1;
+    --ok:#3fd15a;
+    --bad:#ff5f57;
+    --warn:#e3b341;
+    --purple:#b48ef0;
+    --mono:"JetBrains Mono","Cascadia Code","Fira Code",Consolas,"Courier New",monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    --r:14px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:
+      radial-gradient(1200px 600px at 80% -10%, rgba(75,159,225,.10), transparent 60%),
+      radial-gradient(900px 500px at 5% 110%, rgba(255,212,59,.06), transparent 60%),
+      var(--bg);
+    color:var(--ink);
+    font-family:var(--sans);
+    font-size:14px;
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+    overflow:hidden;
+  }
+  /* ---------- 顶栏 ---------- */
+  header{
+    height:62px;
+    display:flex;align-items:center;gap:18px;
+    padding:0 22px;
+    border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg, rgba(18,26,36,.92), rgba(11,15,20,.86));
+    backdrop-filter:blur(12px);
+    position:relative;z-index:10;
+  }
+  .brand{display:flex;align-items:center;gap:11px;flex-shrink:0}
+  .brand .mark{
+    width:34px;height:34px;border-radius:10px;
+    background:linear-gradient(145deg,#2b5f8a,#3776ab);
+    display:grid;place-items:center;
+    box-shadow:0 4px 14px rgba(55,118,171,.35), inset 0 1px 0 rgba(255,255,255,.16);
+    font-size:19px;
+  }
+  .brand h1{font-size:16px;font-weight:700;letter-spacing:.5px}
+  .brand h1 b{color:var(--yellow);font-weight:800}
+  .brand p{font-size:11px;color:var(--ink3);letter-spacing:1.4px;text-transform:uppercase;line-height:1.1;margin-top:1px}
+  .prog{flex:1;display:flex;align-items:center;gap:12px;min-width:0}
+  .bar{flex:1;height:7px;border-radius:99px;background:#0a0e13;border:1px solid var(--line);overflow:hidden;position:relative}
+  .bar i{
+    display:block;height:100%;width:0%;
+    background:linear-gradient(90deg,#2f7fbf,var(--yellow));
+    border-radius:99px;transition:width .55s cubic-bezier(.22,1,.36,1);
+    box-shadow:0 0 12px rgba(255,212,59,.4);
+  }
+  .prog span{font-size:12px;color:var(--ink2);white-space:nowrap;font-variant-numeric:tabular-nums}
+  .prog span b{color:var(--yellow);font-weight:700}
+
+  /* 顶部细进度线：后台下载环境时，不管停在哪个页签都看得见 */
+  .gbar{
+    position:fixed;top:0;left:0;right:0;height:2px;z-index:200;
+    background:transparent;opacity:0;transition:opacity .35s;pointer-events:none;
+  }
+  .gbar.on{opacity:1}
+  .gbar i{
+    display:block;height:100%;width:0;
+    background:linear-gradient(90deg,#2f7fbf,var(--yellow));
+    box-shadow:0 0 8px rgba(255,212,59,.55);
+    transition:width .18s linear;
+  }
+  .engine{
+    display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--ink3);
+    padding:5px 11px;border:1px solid var(--line);border-radius:99px;background:var(--panel2);white-space:nowrap;
+  }
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--ink3);transition:.3s}
+  .dot.loading{background:var(--warn);animation:pulse 1.1s infinite}
+  .dot.ready{background:var(--ok);box-shadow:0 0 8px var(--ok)}
+  .dot.fail{background:var(--bad)}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+
+  /* 右上角菜单 */
+  .menu-wrap{position:relative;flex-shrink:0}
+  .menu-btn{
+    width:32px;height:32px;border-radius:8px;display:grid;place-items:center;
+    background:var(--panel2);border:1px solid var(--line);color:var(--ink2);
+    font-size:16px;line-height:1;cursor:pointer;padding-bottom:6px;
+  }
+  .menu-btn:hover{background:#16202b;color:var(--ink);border-color:var(--line2)}
+  .menu-pop{
+    position:absolute;right:0;top:38px;z-index:50;min-width:168px;padding:6px;
+    background:#152130;border:1px solid var(--line2);border-radius:10px;
+    box-shadow:0 16px 40px rgba(0,0,0,.55);animation:pop .16s ease-out;
+  }
+  .menu-pop button{
+    display:block;width:100%;text-align:left;padding:8px 11px;border-radius:6px;
+    background:transparent;border:0;color:var(--ink2);font:inherit;font-size:12.5px;cursor:pointer;
+  }
+  .menu-pop button:hover{background:rgba(255,255,255,.06);color:var(--ink)}
+  .menu-pop button.danger:hover{background:rgba(255,95,87,.14);color:#ff8a84}
+  .menu-pop .sep{height:1px;background:var(--line);margin:5px 4px}
+
+  /* ---------- 布局 ---------- */
+  .layout{display:grid;grid-template-columns:246px 1fr;height:calc(100vh - 62px);overflow:hidden}
+  nav{
+    border-right:1px solid var(--line);overflow-y:auto;padding:13px 10px 32px;
+    background:linear-gradient(180deg,rgba(13,20,27,.7),rgba(11,15,20,.2));
+  }
+  nav::-webkit-scrollbar,.pane::-webkit-scrollbar,.term::-webkit-scrollbar{width:9px;height:9px}
+  nav::-webkit-scrollbar-thumb,.pane::-webkit-scrollbar-thumb,.term::-webkit-scrollbar-thumb{background:#24323f;border-radius:9px;border:2px solid transparent;background-clip:padding-box}
+  .ch{margin-bottom:12px}
+  .ch-h{display:flex;align-items:center;gap:8px;padding:0 6px 5px;font-size:10.5px;letter-spacing:1.4px;text-transform:uppercase;color:var(--ink3);font-weight:600}
+  .ch-h em{font-style:normal;color:var(--ink3);margin-left:auto;font-size:10px;letter-spacing:0;opacity:.85}
+  .lv{
+    display:flex;align-items:center;gap:8px;width:100%;text-align:left;
+    padding:5px 8px;border-radius:8px;border:1px solid transparent;background:transparent;
+    color:var(--ink2);font:inherit;font-size:12px;cursor:pointer;transition:.16s;margin-bottom:1px;
+  }
+  .lv:hover:not(.lock){background:rgba(75,159,225,.09);border-color:rgba(75,159,225,.22);color:var(--ink)}
+  .lv .n{
+    width:20px;height:20px;border-radius:5px;flex-shrink:0;display:grid;place-items:center;
+    font-size:10px;font-weight:700;font-family:var(--mono);
+    background:#0a1017;border:1px solid var(--line2);color:var(--ink3);
+  }
+  .lv.done .n{background:rgba(63,209,90,.16);border-color:rgba(63,209,90,.5);color:var(--ok)}
+  .lv.lock{opacity:.38;cursor:not-allowed}
+  .lv.active{background:rgba(255,212,59,.10);border-color:rgba(255,212,59,.42);color:var(--yellow)}
+  .lv.active .n{background:rgba(255,212,59,.18);border-color:rgba(255,212,59,.6);color:var(--yellow)}
+  .lv .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+  /* ---------- 主区 ---------- */
+  main{display:grid;grid-template-columns:1fr 380px;overflow:hidden;min-width:0}
+  .pane{overflow-y:auto;min-width:0}
+  .left{padding:22px 26px 40px}
+  .right{border-left:1px solid var(--line);display:flex;flex-direction:column;background:var(--panel2)}
+
+  .kick{display:flex;align-items:center;gap:10px;margin-bottom:9px}
+  .tag{
+    font-size:10.5px;letter-spacing:1.4px;text-transform:uppercase;font-weight:700;
+    padding:3px 9px;border-radius:5px;background:rgba(75,159,225,.14);color:#7dc0f0;border:1px solid rgba(75,159,225,.28);
+  }
+  .tag.boss{background:rgba(255,95,87,.14);color:#ff8a84;border-color:rgba(255,95,87,.32)}
+  .tag.done{background:rgba(63,209,90,.14);color:#6fe084;border-color:rgba(63,209,90,.3)}
+  h2{font-size:23px;font-weight:700;letter-spacing:.2px;margin-bottom:6px}
+  .goal{color:var(--ink2);font-size:13.5px;margin-bottom:16px}
+  .goal code{font-family:var(--mono);font-size:12.5px;background:rgba(255,212,59,.10);color:var(--yellow);padding:1.5px 5px;border-radius:4px}
+
+  .expect{
+    border:1px solid var(--line);border-radius:11px;background:var(--panel);
+    padding:11px 14px;margin-bottom:16px;
+  }
+  .expect h4{font-size:10.5px;letter-spacing:1.4px;text-transform:uppercase;color:var(--ink3);margin-bottom:7px;font-weight:700}
+  .expect pre{font-family:var(--mono);font-size:12.5px;color:#a9e5b8;line-height:1.65;white-space:pre-wrap;word-break:break-all}
+
+  .toolbar{display:flex;align-items:center;gap:8px;margin-bottom:9px;flex-wrap:wrap}
+  .toolbar .spacer{flex:1}
+  button{font:inherit;cursor:pointer;border:0;transition:.16s}
+  .btn{
+    display:inline-flex;align-items:center;gap:7px;padding:8px 15px;border-radius:8px;
+    font-size:12.5px;font-weight:600;background:var(--panel);border:1px solid var(--line2);color:var(--ink2);
+  }
+  .btn:hover{background:#16202b;color:var(--ink);border-color:#3a4d61}
+  .btn:active{transform:translateY(1px)}
+  .btn.run{
+    background:linear-gradient(180deg,#ffe066,var(--yellow));color:#1a1500;border-color:#e6ba1f;
+    box-shadow:0 3px 14px rgba(255,212,59,.22);
+  }
+  .btn.run:hover{background:linear-gradient(180deg,#ffe985,#ffd93b);color:#1a1500}
+  .btn.run:disabled{opacity:.5;cursor:wait;box-shadow:none}
+  .btn.ghost{background:transparent;border-color:transparent;color:var(--ink2);font-weight:500;padding:8px 10px}
+  .btn.ghost:hover{color:var(--ink);background:rgba(255,255,255,.05)}
+  kbd{font-family:var(--mono);font-size:10px;background:rgba(0,0,0,.28);border:1px solid rgba(0,0,0,.3);padding:1px 5px;border-radius:4px;opacity:.72}
+
+  /* ---------- 编辑器 ---------- */
+  .editor{
+    display:grid;grid-template-columns:44px 1fr;border:1px solid var(--line2);border-radius:12px;
+    overflow:hidden;background:#0a0f15;position:relative;height:300px;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.03);
+  }
+  .editor:focus-within{border-color:#3d6a92;box-shadow:0 0 0 3px rgba(75,159,225,.10)}
+  .gutter{
+    padding:14px 0;text-align:right;font-family:var(--mono);font-size:13px;line-height:1.62;
+    color:#3d4f62;background:#080c11;border-right:1px solid #16202b;
+    overflow:hidden;user-select:none;white-space:pre;
+  }
+  .gutter b{display:block;padding-right:11px;font-weight:400}
+  .code-area{position:relative;overflow:hidden}
+  #hl,#code{
+    font-family:var(--mono);font-size:13px;line-height:1.62;
+    padding:14px 16px 14px 14px;border:0;margin:0;white-space:pre;tab-size:4;
+    letter-spacing:0;
+  }
+  #hl{position:absolute;inset:0;overflow:auto;pointer-events:none;color:#c6d4e2}
+  #hl::-webkit-scrollbar{display:none}
+  #hl::-webkit-scrollbar-thumb{display:none}
+  #code{
+    position:absolute;inset:0;width:100%;height:100%;resize:none;outline:0;background:transparent;
+    color:transparent;-webkit-text-fill-color:transparent;caret-color:var(--yellow);
+    overflow:auto;font-family:var(--mono);
+  }
+  #code::selection{background:rgba(75,159,225,.28);-webkit-text-fill-color:transparent}
+  .c-kw{color:#ff7ab2}
+  .c-str{color:#9ce38a}
+  .c-num{color:#ffbe5c}
+  .c-com{color:#4f6580;font-style:italic}
+  .c-fn{color:#79c0ff}
+
+  /* ---------- 右栏：运行结果 ---------- */
+  .rhead{
+    display:flex;align-items:center;gap:8px;padding:13px 16px;border-bottom:1px solid var(--line);
+    font-size:11px;letter-spacing:1.4px;text-transform:uppercase;color:var(--ink3);font-weight:700;flex-shrink:0;
+  }
+  .rhead .spacer{flex:1}
+  .verdict{
+    font-size:10px;letter-spacing:.6px;padding:2px 8px;border-radius:99px;text-transform:none;
+    background:rgba(255,255,255,.05);color:var(--ink3);font-weight:600;
+  }
+  .verdict.ok{background:rgba(63,209,90,.16);color:var(--ok)}
+  .verdict.bad{background:rgba(255,95,87,.16);color:var(--bad)}
+  .term{
+    flex:1;overflow-y:auto;padding:14px 16px;font-family:var(--mono);font-size:12.5px;line-height:1.7;
+    color:#a9bccf;white-space:pre-wrap;word-break:break-word;
+  }
+  .term .ph{color:var(--ink3);font-family:var(--sans);font-size:12.5px;line-height:1.75}
+  .term .err{color:#ff8a84}
+  .term .hint-line{color:var(--warn)}
+
+  /* 依赖加载进度 */
+  .loadbar{
+    height:7px;background:#0a0e13;border:1px solid var(--line);border-radius:99px;
+    overflow:hidden;margin:12px 0 7px;
+  }
+  .loadbar i{
+    display:block;height:100%;width:0;border-radius:99px;
+    background:linear-gradient(90deg,#2f7fbf,var(--yellow));
+    transition:width .35s cubic-bezier(.22,1,.36,1);
+    box-shadow:0 0 10px rgba(255,212,59,.35);
+  }
+  .loadmsg{font-family:var(--mono);font-size:11.5px;color:var(--ink3);letter-spacing:.2px}
+
+  /* 结果卡 */
+  .rescard{border-radius:11px;padding:12px 14px;margin-bottom:10px;border:1px solid;animation:pop .3s cubic-bezier(.22,1.4,.4,1)}
+  @keyframes pop{from{opacity:0;transform:translateY(6px) scale(.98)}to{opacity:1;transform:none}}
+  .rescard.ok{background:rgba(63,209,90,.09);border-color:rgba(63,209,90,.35)}
+  .rescard.bad{background:rgba(255,95,87,.08);border-color:rgba(255,95,87,.32)}
+  .rescard .ttl{font-family:var(--sans);font-weight:700;font-size:13px;margin-bottom:8px;display:flex;align-items:center;gap:7px}
+  .rescard.ok .ttl{color:var(--ok)}
+  .rescard.bad .ttl{color:#ff8a84}
+  .diff{font-family:var(--sans);font-size:11.5px;color:var(--ink3);display:block;margin-bottom:8px}
+  .cmp{display:grid;gap:6px}
+  .cmp .row{font-family:var(--mono);font-size:12px;padding:5px 9px;border-radius:6px;white-space:pre-wrap;word-break:break-all;line-height:1.5}
+  .cmp .row.got{background:rgba(255,95,87,.09);color:#ffb3ae;border-left:2px solid #ff5f57}
+  .cmp .row.exp{background:rgba(63,209,90,.09);color:#a9e5b8;border-left:2px solid var(--ok)}
+  .cmp .row.mute{background:rgba(255,255,255,.03);color:var(--ink3);border-left:2px solid var(--line2)}
+  .cmp .lbl{font-family:var(--sans);font-size:10.5px;letter-spacing:1px;color:var(--ink3);margin-bottom:2px}
+
+  /* 图表结果 */
+  .figwrap{margin-top:11px;background:#fff;border-radius:8px;padding:7px;box-shadow:0 2px 10px rgba(0,0,0,.3)}
+  .figwrap img{max-width:100%;height:auto;display:block;margin:0 auto;border-radius:4px}
+
+  /* 通关横幅 */
+  .win{
+    position:fixed;inset:0;display:grid;place-items:center;z-index:60;
+    background:rgba(6,9,13,.72);backdrop-filter:blur(6px);animation:fade .25s;
+  }
+  @keyframes fade{from{opacity:0}to{opacity:1}}
+  .win .card{
+    width:min(420px,88vw);background:linear-gradient(170deg,#152130,#0d141b);
+    border:1px solid rgba(255,212,59,.34);border-radius:18px;padding:30px 28px 24px;text-align:center;
+    box-shadow:0 30px 80px rgba(0,0,0,.65), 0 0 0 1px rgba(255,212,59,.08) inset;
+    animation:rise .38s cubic-bezier(.22,1.2,.4,1);position:relative;overflow:hidden;
+  }
+  @keyframes rise{from{opacity:0;transform:translateY(22px) scale(.95)}to{opacity:1;transform:none}}
+  .win .card::before{
+    content:"";position:absolute;top:-60%;left:-20%;width:140%;height:120%;
+    background:radial-gradient(circle at 50% 0%, rgba(255,212,59,.20), transparent 62%);pointer-events:none;
+  }
+  .win .star{font-size:44px;line-height:1;margin-bottom:10px;animation:spin .7s cubic-bezier(.2,1.5,.4,1)}
+  @keyframes spin{from{transform:scale(.2) rotate(-90deg);opacity:0}to{transform:none;opacity:1}}
+  .win h3{font-size:20px;margin-bottom:6px;position:relative}
+  .win p{font-size:13px;color:var(--ink2);margin-bottom:20px;position:relative}
+  .win p b{color:var(--yellow)}
+  .win .acts{display:flex;gap:9px;justify-content:center;position:relative}
+
+  .hintbox{border:1px solid rgba(227,179,65,.3);background:rgba(227,179,65,.07);border-radius:9px;padding:10px 13px;margin-bottom:12px;font-size:12.5px;color:#e8cd8a;animation:pop .25s}
+  .hintbox b{color:var(--warn);font-size:11px;letter-spacing:1px;display:block;margin-bottom:3px;text-transform:uppercase}
+
+  /* ---------- 理论卡 ---------- */
+  .tabs{display:flex;gap:4px;margin-bottom:15px;border-bottom:1px solid var(--line)}
+  .tab{
+    padding:9px 18px;font-size:12.5px;font-weight:600;color:var(--ink3);background:transparent;
+    border:0;border-bottom:2px solid transparent;cursor:pointer;border-radius:7px 7px 0 0;margin-bottom:-1px;
+    display:flex;align-items:center;gap:7px;font-family:var(--sans);
+  }
+  .tab:hover{color:var(--ink2);background:rgba(255,255,255,.035)}
+  .tab.active{color:var(--yellow);border-bottom-color:var(--yellow);background:rgba(255,212,59,.06)}
+  .tab .cnt{font-size:10px;background:rgba(255,255,255,.07);padding:1px 6px;border-radius:99px;color:var(--ink3);font-weight:600}
+  .tab.active .cnt{background:rgba(255,212,59,.16);color:var(--yellow)}
+  .tabpane.hidden{display:none}
+  .gocode{
+    width:100%;justify-content:center;margin-top:10px;padding:11px;font-size:13px;font-weight:700;
+    background:linear-gradient(180deg,rgba(255,212,59,.14),rgba(255,212,59,.06));
+    border:1px solid rgba(255,212,59,.32);color:var(--yellow);border-radius:9px;
+  }
+  .gocode:hover{background:linear-gradient(180deg,rgba(255,212,59,.24),rgba(255,212,59,.12));border-color:rgba(255,212,59,.5)}
+  .theory{margin-bottom:4px}
+  .th-head{display:flex;align-items:center;gap:9px;margin-bottom:10px}
+  .th-head>span{font-size:10.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--ink3);font-weight:700}
+  .th-head>span i{font-style:normal;color:var(--ink3);opacity:.7}
+  .th-head .btn{margin-left:auto;font-size:11px;padding:3px 9px;border-radius:6px}
+  .tcard{
+    border:1px solid var(--line);border-radius:11px;padding:12px 14px;margin-bottom:8px;
+    background:linear-gradient(180deg,rgba(75,159,225,.05),rgba(18,26,36,.45));
+    transition:border-color .18s;
+  }
+  .tcard:hover{border-color:#31465b}
+  .tcard h5{font-size:12.5px;font-weight:700;color:#9fd0f5;margin-bottom:5px;display:flex;gap:7px;align-items:baseline;line-height:1.5}
+  .tcard h5::before{content:"▸";color:var(--blue);font-size:10px;flex-shrink:0}
+  .tcard p{font-size:12.5px;color:var(--ink2);line-height:1.8}
+  .tcard p code{font-family:var(--mono);font-size:11.5px;background:rgba(255,212,59,.11);color:var(--yellow);padding:1px 4px;border-radius:3px;white-space:nowrap}
+  .tcard p b{color:var(--ink);font-weight:600}
+  .snippet{margin-top:9px;border:1px solid #16202b;border-radius:8px;background:#080d12;overflow:hidden}
+  .snippet pre{font-family:var(--mono);font-size:12px;line-height:1.6;padding:9px 12px;white-space:pre-wrap;word-break:break-word;color:#c6d4e2}
+  .sn-bar{display:flex;align-items:center;gap:8px;padding:6px 9px;border-top:1px solid #16202b;background:rgba(255,255,255,.02);flex-wrap:wrap}
+  .btn.tiny{font-size:10.5px;padding:3px 9px;border-radius:6px;background:rgba(75,159,225,.13);border:1px solid rgba(75,159,225,.32);color:#8cc7ee;font-weight:600;letter-spacing:0}
+  .btn.tiny:hover{background:rgba(75,159,225,.24);color:#c0e4fa}
+  .btn.tiny.alt{background:rgba(255,255,255,.04);border-color:var(--line2);color:var(--ink3)}
+  .btn.tiny.alt:hover{background:rgba(255,255,255,.08);color:var(--ink2)}
+  .sn-out{font-family:var(--mono);font-size:11.5px;color:#8fdfa4;min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right}
+  .sn-out .sn-err{color:#ff8a84}
+  .sn-out .sn-arrow{color:var(--ink3)}
+  .theory.folded .tcard{display:none}
+
+  /* toast */
+  .toast{
+    position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(14px);
+    background:#182531;border:1px solid #2f4459;color:var(--ink);font-size:12.5px;
+    padding:9px 18px;border-radius:99px;box-shadow:0 10px 30px rgba(0,0,0,.5);
+    opacity:0;transition:.28s cubic-bezier(.22,1,.36,1);z-index:80;pointer-events:none;
+  }
+  .toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  @media (prefers-reduced-motion: reduce){
+    *, *::before, *::after{
+      animation-duration:.01ms !important;
+      animation-iteration-count:1 !important;
+      transition-duration:.01ms !important;
+      scroll-behavior:auto !important;
+    }
+  }
+
+  @media (max-width:1180px){
+    main{grid-template-columns:1fr;grid-template-rows:1fr auto}
+    .left{min-height:0}
+    .right{
+      display:flex;border-left:0;border-top:1px solid var(--line);min-height:0;
+      height:36vh;max-height:320px;transition:height .22s ease;
+    }
+    .right.collapsed{height:40px}
+    .right.collapsed .term{display:none}
+    .rhead{cursor:pointer;user-select:none;padding:9px 14px}
+    .rhead::after{content:'▾';margin-left:8px;color:var(--ink3);font-size:11px;transition:transform .2s}
+    .right.collapsed .rhead{height:40px}
+    .right.collapsed .rhead::after{transform:rotate(180deg)}
+    .editor{height:min(300px,34vh)}
+    .left{padding:16px 18px 24px}
+    h2{font-size:20px}
+  }
+  @media (max-width:760px){
+    .layout{grid-template-columns:1fr;grid-template-rows:auto 1fr}
+    nav{
+      display:flex;align-items:center;gap:2px;overflow-x:auto;overflow-y:hidden;
+      border-right:0;border-bottom:1px solid var(--line);padding:8px 10px;
+    }
+    nav .ch{display:flex;align-items:center;gap:4px;margin:0 10px 0 0;flex-shrink:0}
+    /* 窄屏丢掉章节标题，改成「第 N 章」标签，不然一排数字分不清是哪章 */
+    nav .ch::before{
+      content:attr(data-ch);font-size:10px;color:var(--ink3);white-space:nowrap;
+      letter-spacing:.3px;padding-right:2px;
+    }
+    nav .ch-h{display:none}
+    nav .lv{width:auto;flex-shrink:0;padding:4px 7px;margin:0}
+    nav .lv .t{display:none}
+    .left{padding:16px}
+    .brand p{display:none}
+    .bar{display:none}
+    .prog{flex:0 0 auto;justify-content:flex-end}
+    h2{font-size:20px}
+  }
+</style>
+</head>
+<body>
+
+<div class="gbar" id="gbar" aria-hidden="true"><i id="gbarFill"></i></div>
+
+<header>
+  <div class="brand">
+    <div class="mark">🐍</div>
+    <div>
+      <h1>蛇之塔 · <b>PyQuest</b></h1>
+      <p id="subTitle">Python 闯关</p>
+    </div>
+  </div>
+  <div class="prog">
+    <div class="bar"><i id="barFill"></i></div>
+    <span id="progText"></span>
+  </div>
+  <div class="engine">
+    <span class="dot" id="dot"></span>
+    <span id="engineText">引擎待机</span>
+  </div>
+  <div class="menu-wrap">
+    <button class="menu-btn" id="menuBtn" aria-label="更多操作" aria-haspopup="menu" aria-expanded="false">⋯</button>
+  </div>
+</header>
+
+<div class="layout">
+  <nav id="nav"></nav>
+  <main>
+    <div class="pane left" id="left"></div>
+    <aside class="right">
+      <div class="rhead">
+        <span>运行结果</span>
+        <span class="spacer"></span>
+        <span class="verdict" id="verdict">未运行</span>
+      </div>
+      <div class="term" id="term">
+        <div class="ph">
+          点「运行」执行你的 Python 代码。<br>
+          判题方式是<b>比对标准输出</b>——程序打印的内容一字不差才算过。<br><br>
+          快捷键 <kbd>Ctrl</kbd>+<kbd>Enter</kbd> 运行。
+        </div>
+      </div>
+    </aside>
+  </main>
+</div>
+
+<script>
+/* =========================================================
+   1. 关卡数据
+   ========================================================= */
+const CHAPTERS = [
+  { id:1, name:'火种之厅', sub:'输出与变量' },
+  { id:2, name:'岔路口',   sub:'条件分支' },
+  { id:3, name:'轮回阶梯', sub:'循环' },
+  { id:4, name:'容器回廊', sub:'列表与字典' },
+  { id:5, name:'造物工坊', sub:'函数' },
+  { id:6, name:'数据初探', sub:'pandas 读表' },
+  { id:7, name:'联结之桥', sub:'merge 与透视' },
+  { id:8, name:'绘图台', sub:'matplotlib' },
+  { id:9, name:'结算台', sub:'项目实战' }
+];
+
+const LEVELS = [
+  /* ---------- 第一章 ---------- */
+  {
+    id:'1-1', ch:1, title:'唤醒 · print',
+    goal:'让程序打印一行字',
+    brief:'每一座塔都有一段咒语。用 <code>print()</code> 把括号里的内容输出到屏幕上——字符串要用引号包起来，单双引号都行。',
+    expect:['Hello, Python'],
+    starter:'# 在下面写你的第一行 Python\n',
+    hints:[
+      'print 是函数，用法是 print(内容)',
+      '字符串要包在引号里：print("Hello, Python")',
+      '注意逗号、大小写、空格都要和期望输出一致'
+    ]
+  },
+  {
+    id:'1-2', ch:1, title:'变量 · 两数之和',
+    goal:'用变量存数字，计算它们的和',
+    brief:'变量就是一个贴了标签的盒子，写 <code>x = 7</code> 就把 7 放进了名叫 x 的盒子。加号 <code>+</code> 对数字做加法。',
+    expect:['12'],
+    starter:'x = 7\ny = 5\n\n# 打印 x 与 y 的和\n',
+    hints:[
+      'x + y 会算出 12',
+      '要看到结果，得把它交给 print：print(x + y)',
+      '如果写成 print("x + y")，打印的会是那串字面文本'
+    ]
+  },
+  {
+    id:'1-3', ch:1, title:'字符串 · 拼接',
+    goal:'把两段文字接起来',
+    brief:'<code>+</code> 对字符串是「拼接」。<code>"I love " + name</code> 会把两个字符串首尾相连。注意 <code>"I love "</code> 末尾那个空格——少了它，单词就会黏在一起。',
+    expect:['I love Python'],
+    starter:'name = "Python"\n\n# 用 + 拼出 "I love Python" 并打印\n',
+    hints:[
+      'print("I love " + name)',
+      '空格是字符串的一部分，别忘了'
+    ]
+  },
+  {
+    id:'1-4', ch:1, title:'数字 · 圆面积',
+    goal:'用乘方和 round() 计算圆面积',
+    brief:'<code>**</code> 是乘方，<code>r ** 2</code> 就是 r 的平方。<code>round(值, 位数)</code> 用来四舍五入。圆面积公式：π × r²。',
+    expect:['28.3'],
+    starter:'r = 3\npi = 3.14\n\n# area = pi * r ** 2\n# 打印保留一位小数的面积\n',
+    hints:[
+      'area = pi * r ** 2 得到 28.26',
+      'print(round(area, 1)) 会输出 28.3',
+      '别写成 round(area) —— 那样会得到整数 28'
+    ]
+  },
+
+  /* ---------- 第二章 ---------- */
+  {
+    id:'2-1', ch:2, title:'奇偶 · if',
+    goal:'用 if / else 做第一次判断',
+    brief:'<code>%</code> 是取余数：<code>n % 2</code> 等于 0 就是偶数，否则是奇数。注意 Python 的缩进就是代码块——冒号后面必须缩进 4 个空格。',
+    expect:['odd'],
+    starter:'n = 7\n\n# 奇数打印 odd，偶数打印 even\n',
+    hints:[
+      'if n % 2 == 0: 后面缩进写 print("even")',
+      'else: 与 if 对齐，再缩进写 print("odd")',
+      '缩进错位是 Python 最常见的报错来源'
+    ]
+  },
+  {
+    id:'2-2', ch:2, title:'分段 · elif',
+    goal:'多个条件从上往下依次判断',
+    brief:'<code>elif</code> 是 else if 的缩写。条件按顺序匹配，<b>第一个成立的分支执行后就跳出</b>——所以 90 分以上写在最前面，就不必再判断它是不是小于 80。',
+    expect:['B'],
+    starter:'score = 86\n\n# >=90 打印 A，80~89 打印 B，70~79 打印 C，其余打印 D\n',
+    hints:[
+      'if score >= 90: …  elif score >= 80: …',
+      '顺序很重要：从大到小写，后面的条件天然排除了更大的情况',
+      '86 满足 >= 80，所以输出 B'
+    ]
+  },
+  {
+    id:'2-3', ch:2, title:'闰年 · 布尔',
+    goal:'把复合条件写成一个表达式',
+    brief:'闰年规则：能被 4 整除且不能被 100 整除，<b>或者</b>能被 400 整除。Python 里「且」是 <code>and</code>，「或」是 <code>or</code>，括号用来分组。',
+    expect:['True'],
+    starter:'year = 2024\n\n# 判断是否闰年，打印 True 或 False\n',
+    hints:[
+      '条件写成：(year % 4 == 0 and year % 100 != 0) or year % 400 == 0',
+      '直接 print 这个条件即可，Python 会打印 True / False',
+      '注意 True 的首字母必须大写'
+    ]
+  },
+  {
+    id:'2-4', ch:2, title:'三数取大',
+    goal:'不用 max，自己比出来',
+    brief:'把第一个数当作当前最大值，然后依次和后面两个比较、更新。这是最朴素的「打擂台」算法。',
+    expect:['9'],
+    starter:'a, b, c = 3, 9, 5\n\n# 找出最大的那个并打印（不许用 max）\n',
+    hints:[
+      'big = a 先立擂主',
+      'if b > big: big = b，然后对 c 重复一次',
+      'print(big)'
+    ]
+  },
+
+  /* ---------- 第三章 ---------- */
+  {
+    id:'3-1', ch:3, title:'数到五 · for',
+    goal:'用 range 控制循环次数',
+    brief:'<code>range(1, 6)</code> 产生 1、2、3、4、5——<b>包含起点，不包含终点</b>，这是初学者最常踩的坑。<code>for i in range(1, 6):</code> 会让循环体执行 5 次。',
+    expect:['1','2','3','4','5'],
+    starter:'# 逐行打印 1 到 5，每行一个数字\n',
+    hints:[
+      'for i in range(1, 6): 然后缩进写 print(i)',
+      '如果想要 1 到 5，终点要写 6',
+      'range(5) 会得到 0~4，不是 1~5'
+    ]
+  },
+  {
+    id:'3-2', ch:3, title:'累加 · 5050',
+    goal:'用循环求和，而不是用公式',
+    brief:'准备一个「累加器」变量从 0 开始，每轮把当前数字加进去。循环结束后它就装着总和。',
+    expect:['5050'],
+    starter:'total = 0\n\n# 用循环把 1 到 100 累加进 total，然后打印\n',
+    hints:[
+      'for i in range(1, 101): 循环 100 次',
+      '循环体里写 total = total + i',
+      '注意 range 的终点是 101，因为不包含终点'
+    ]
+  },
+  {
+    id:'3-3', ch:3, title:'倍数 · while',
+    goal:'用 while 生成一串数字',
+    brief:'<code>while</code> 是「只要条件成立就一直做」。配合一个不断自增的计数器，就能生成序列。最后用 <code>",".join(列表)</code> 把多个字符串拼成一行。',
+    expect:['3,6,9,12,15,18'],
+    starter:'parts = []\nn = 3\n\n# 用 while 收集小于 20 的 3 的倍数，逗号连接后打印\n',
+    hints:[
+      'while n < 20: 每轮 parts.append(str(n))，然后 n = n + 3',
+      'join 只能拼接字符串列表，所以要 str(n)',
+      'print(",".join(parts)) —— 注意 join 前面的逗号是分隔符'
+    ]
+  },
+  {
+    id:'3-4', ch:3, title:'星之塔',
+    goal:'嵌套循环画出三角形',
+    brief:'第 i 行需要 i 个星号。外层循环管「第几行」，内层循环管「这一行打几个」。字符串乘整数可以重复：<code>"*" * 3</code> 得到 <code>***</code>。',
+    expect:['*','**','***','****'],
+    starter:'# 打印 4 行，第 i 行有 i 个星号\n',
+    hints:[
+      '简单解法：for i in range(1, 5): print("*" * i)',
+      '硬核解法：外面 for，里面再套一个 for 打印单个星号；内层用 print("*", end="") 避免换行'
+    ]
+  },
+
+  /* ---------- 第四章 ---------- */
+  {
+    id:'4-1', ch:4, title:'寻峰 · 遍历',
+    goal:'在列表里找最大值',
+    brief:'列表用方括号装东西：<code>[3, 8, 2, 9, 5]</code>。<code>for x in nums</code> 会依次取出每个元素。思路同「三数取大」，只是循环的轮数由列表长度决定。',
+    expect:['9'],
+    starter:'nums = [3, 8, 2, 9, 5]\n\n# 用循环找出最大值并打印（不许用 max）\n',
+    hints:[
+      'big = nums[0] 先拿第一个当擂主',
+      'for x in nums: 如果 x > big 就更新 big',
+      '最后 print(big)'
+    ]
+  },
+  {
+    id:'4-2', ch:4, title:'切片 · 前三',
+    goal:'用切片取子列表',
+    brief:'<code>nums[a:b]</code> 取下标 a 到 b 之前的部分，同样是「含头不含尾」。<code>nums[:3]</code> 就是前三个元素。直接 print 列表，Python 会原样带方括号和逗号打印出来。',
+    expect:['[3, 8, 2]'],
+    starter:'nums = [3, 8, 2, 9, 5]\n\n# 用切片取出前三个元素并打印\n',
+    hints:[
+      'nums[:3] 得到 [3, 8, 2]',
+      '写 nums[0:3] 效果一样，起点 0 可以省略',
+      '不要用 print(nums[0], nums[1], nums[2])——那样输出不带方括号'
+    ]
+  },
+  {
+    id:'4-3', ch:4, title:'计数 · dict',
+    goal:'用字典统计数据',
+    brief:'字典是「键 → 值」的映射。<code>counts[word] = counts.get(word, 0) + 1</code> 是统计词频的经典写法：取不到这个键时返回默认值 0，取到了就加一。',
+    expect:['3'],
+    starter:'words = ["apple", "banana", "apple", "cherry", "apple"]\n\n# 统计 apple 出现了几次并打印\n',
+    hints:[
+      '可以用字典：counts = {}，遍历 words 累计次数',
+      'counts[w] = counts.get(w, 0) + 1 是核心那一行',
+      '最后 print(counts["apple"])'
+    ]
+  },
+  {
+    id:'4-4', ch:4, title:'推导 · 平方',
+    goal:'一行写出筛选 + 变换',
+    brief:'列表推导式把「循环 + 条件 + 加工」压进一行：<code>[x * x for x in range(1, 11) if x % 2 == 0]</code>。先读 for 部分，再读 if，最后看前面拿 x 做了什么。',
+    expect:['[4, 16, 36, 64, 100]'],
+    starter:'# 生成 1~10 中偶数的平方，打印这个列表\n',
+    hints:[
+      'range(1, 11) 覆盖 1 到 10',
+      '偶数的条件是 x % 2 == 0',
+      '[x * x for x in range(1, 11) if x % 2 == 0] 后直接 print'
+    ]
+  },
+
+  /* ---------- 第五章 ---------- */
+  {
+    id:'5-1', ch:5, title:'定义 · square',
+    goal:'写出你的第一个函数',
+    brief:'<code>def</code> 定义函数，<code>return</code> 把结果交回去。关键区别：<code>return</code> 是「交出去一个值」，<code>print</code> 是「喊一声给人看」——两者不能互相替代。',
+    expect:['49'],
+    starter:'# 定义 square(n)，返回 n 的平方\n\n\n# 打印 square(7)\n',
+    hints:[
+      'def square(n): 然后缩进一行 return n * n',
+      '定义完不会自己执行，要 print(square(7)) 才会跑',
+      '如果在函数里写成 print 而没有 return，外面拿到的会是 None'
+    ]
+  },
+  {
+    id:'5-2', ch:5, title:'默认参数 · greet',
+    goal:'让参数有默认值',
+    brief:'<code>def greet(name, greeting="Hello")</code> 里的第二个参数带默认值：调用时不给它，就用 "Hello"；给了就覆盖。注意返回值里要有逗号和空格：<code>"Hello, Ann"</code>。',
+    expect:['Hello, Ann','Hi, Bob'],
+    starter:'# 定义 greet(name, greeting="Hello")，返回 "问候, 名字"\n\n\n# 打印 greet("Ann") 和 greet("Bob", "Hi")\n',
+    hints:[
+      'return greeting + ", " + name',
+      'greet("Ann") 用默认问候，得到 Hello, Ann',
+      'greet("Bob", "Hi") 覆盖默认值，得到 Hi, Bob'
+    ]
+  },
+  {
+    id:'5-3', ch:5, title:'递归 · 阶乘',
+    goal:'函数调用自己',
+    brief:'递归要两件事：<b>出口</b>和<b>递推</b>。阶乘的出口是 <code>n &lt;= 1</code> 时返回 1，否则返回 <code>n * fact(n - 1)</code>。缺了出口就是无限递归，Python 会报 RecursionError。',
+    expect:['720'],
+    starter:'# 用递归实现 fact(n)，返回 n 的阶乘\n\n\n# 打印 fact(6)\n',
+    hints:[
+      '第一行先写出口：if n <= 1: return 1',
+      '再写递推：return n * fact(n - 1)',
+      '6 的阶乘是 720'
+    ]
+  },
+  {
+    id:'5-4', ch:5, title:'BOSS · FizzBuzz', boss:true,
+    goal:'把前面的东西全用上',
+    brief:'经典面试题，考的是取余、条件顺序和字符串处理的组合。1 到 15 里：3 的倍数说 Fizz，5 的倍数说 Buzz，同时是两者（15 的倍数）说 FizzBuzz，其余照常报数。<b>判断 15 的倍数必须放最前面</b>，否则会被 3 或 5 抢先匹配。',
+    expect:['1,2,Fizz,4,Buzz,Fizz,7,8,Fizz,Buzz,11,Fizz,13,14,FizzBuzz'],
+    starter:'parts = []\n\n# 1 到 15，按规则生成每一项，最后用逗号连接打印\n',
+    hints:[
+      'for i in range(1, 16): 依次判断',
+      '先判 i % 15 == 0 → "FizzBuzz"，再判 3 和 5，最后 else 用 str(i)',
+      '每轮 parts.append(...)，循环结束后 print(",".join(parts))'
+    ]
+  },
+
+  /* ---------- 第六章：数据分析 ---------- */
+  {
+    id:'6-1', ch:6, title:'读表 · 第一眼',
+    goal:'用 pandas 读 CSV，筛出已完成订单并汇总金额',
+    brief:'真实工作里第一件事永远是「先看一眼数据长什么样」。<code>pd.read_csv()</code> 把 CSV 读成 <b>DataFrame</b>——可以理解成一张有行有列的表。这一关只做三件事：读进来、筛出「已完成」、把金额加起来。',
+    mode:'check',
+    packages:['pandas'],
+    dataFiles:['data/orders.csv'],
+    expect:[],
+    starter:'import pandas as pd\n\n# 1. 读文件（路径就写 data/orders.csv）\ndf = pd.read_csv("data/orders.csv")\n\n# 2. 筛出 status 等于 "已完成" 的行\n\n# 3. 把 amount 列求和，round 到 2 位小数，赋值给 result\n',
+    check: [
+      'chk("result" in globals(), "还没有定义 result 变量")',
+      'import pandas as pd',
+      'try:',
+      '    _v = float(result)',
+      'except (TypeError, ValueError):',
+      '    chk(False, "result 应该是一个数字，不是 DataFrame 或 Series——记得对金额列调用 .sum()")',
+      '_ref = pd.read_csv("data/orders.csv")',
+      '_expected = round(_ref[_ref["status"] == "已完成"]["amount"].sum(), 2)',
+      '_delta = abs(_v - _expected)',
+      'chk(_delta < 0.02, "金额对不上（差了 %.2f）。先确认只筛了「已完成」的订单，再看是不是漏了求和" % _delta)'
+    ].join('\n'),
+    hints:[
+      '筛选写法：df[df["status"] == "已完成"]，得到的是一张只含已完成订单的小表',
+      '取金额列：done["amount"]，再 .sum() 求和',
+      'result = round(done["amount"].sum(), 2)'
+    ]
+  },
+  {
+    id:'6-2', ch:6, title:'筛选 · 只看你要的',
+    goal:'多条件筛选 + 排序 + 取前几名',
+    brief:'单个条件不够用了。<code>&amp;</code>（与）、<code>|</code>（或）、<code>~</code>（非）能把条件拼起来。<b>每个条件都必须用括号包住</b>——不加括号的话，Python 的运算符优先级会先算 <code>&amp;</code> 再算比较，结果就错了，而且不报错，只是悄悄算错。',
+    mode:'check',
+    packages:['pandas'],
+    dataFiles:['data/orders.csv'],
+    expect:[],
+    starter:'import pandas as pd\ndf = pd.read_csv("data/orders.csv")\n\n# 三个条件同时满足：channel 是 "App"、amount 大于 500、status 是 "已完成"\n# 按 amount 从大到小排，取前 3 行\n# 把这 3 行的 order_id 存成列表，赋值给 result\n',
+    check: [
+      'chk("result" in globals(), "还没有定义 result 变量")',
+      'chk(len(result) == 3, "result 应该是 3 个订单号，现在是 %d 个" % len(result))',
+      'import pandas as pd',
+      '_ref = pd.read_csv("data/orders.csv")',
+      '_m = (_ref["channel"] == "App") & (_ref["amount"] > 500) & (_ref["status"] == "已完成")',
+      '_exp = list(_ref[_m].sort_values("amount", ascending=False).head(3)["order_id"])',
+      'chk(list(result) == _exp, "结果不对。检查三点：三个条件是不是都加了括号、排序是降序(ascending=False)、取的是 order_id")'
+    ].join('\n'),
+    hints:[
+      'mask = (df["channel"] == "App") & (df["amount"] > 500) & (df["status"] == "已完成")',
+      '筛完再排序：df[mask].sort_values("amount", ascending=False)',
+      '取前三行的订单号：...[["order_id"]].head(3)，再用 list(...) 转成列表（.tolist() 也行）'
+    ]
+  },
+  {
+    id:'6-3', ch:6, title:'清洗 · 缺失与重复',
+    goal:'把一张脏表收拾干净',
+    brief:'真实数据从来不干净。这份 <code>dirty_orders.csv</code> 里埋了四种毛病：<b>空值、完全重复的行、amount 列混进了 "--" 这种文字、部分字段尾部多了空格</b>。目标是把 <code>result</code> 收拾成一张能直接分析的表。',
+    mode:'check',
+    packages:['pandas'],
+    dataFiles:['data/dirty_orders.csv'],
+    expect:[],
+    starter:'import pandas as pd\ndf = pd.read_csv("data/dirty_orders.csv")\n\n# 1. 看看每一列有多少空值\ndf.isna().sum()\n\n# 2. 删掉完全重复的行\n\n# 3. amount 里混进了文字，先用 to_numeric 把不是数字的变成 NaN\n\n# 4. 把还剩下的空值行删掉，结果赋给 result\n',
+    check: [
+      'chk("result" in globals(), "还没有定义 result 变量")',
+      'chk(hasattr(result, "shape"), "result 应该是一个 DataFrame")',
+      '_n_dup = int(result.duplicated().sum())',
+      'chk(_n_dup == 0, "还有 %d 行是完全重复的" % _n_dup)',
+      'import pandas as pd',
+      'chk("amount" in result.columns, "amount 这一列没了")',
+      'chk(pd.api.types.is_numeric_dtype(result["amount"]), "amount 还不是数值类型——里面混着文字，得先 to_numeric 再处理")',
+      '_n_na = int(result.isna().sum().sum())',
+      'chk(_n_na == 0, "还有 %d 个空值没处理" % _n_na)',
+      '_ws = []',
+      'for _c in ["status", "channel", "category", "city"]:',
+      '    if _c in result.columns:',
+      '        _s = result[_c].astype(str)',
+      '        _bad = int((_s != _s.str.strip()).sum())',
+      '        if _bad:',
+      '            _ws.append("%s（%d 个）" % (_c, _bad))',
+      'chk(not _ws, "这些列还有首尾空格没清干净：%s。用 .str.strip() 处理一下" % "、".join(_ws))',
+      'chk(len(result) == 741, "清洗完应该正好 741 行，现在是 %d 行。四步都做了吗：去重、strip、to_numeric、dropna" % len(result))'
+    ].join('\n'),
+    hints:[
+      'df.isna().sum() 会告诉你每一列各有多少空值，先看再动手',
+      '文本列有尾空格：df["status"].str.strip()，status / channel / category / city 四列都要处理',
+      '去重：df.drop_duplicates()；去掉含空值的行：df.dropna()',
+      'amount 里的文字要先转：pd.to_numeric(df["amount"], errors="coerce")，转不了的会变成 NaN，再 dropna 就干净了'
+    ]
+  },
+  {
+    id:'6-4', ch:6, title:'分组 · groupby',
+    goal:'按类目汇总，得到一张分析表',
+    brief:'<code>groupby</code> 是 pandas 最核心的动作：<b>按某一列分组，对每组算指标</b>。这一关按类目统计「已完成」订单的订单数和总金额，按总金额从大到小排。列名固定用 <code>category</code> / <code>orders</code> / <code>revenue</code>——真实工作里表头乱起名，后面的人会骂你。',
+    mode:'check',
+    packages:['pandas'],
+    dataFiles:['data/orders.csv'],
+    expect:[],
+    starter:'import pandas as pd\ndf = pd.read_csv("data/orders.csv")\ndone = df[df["status"] == "已完成"]\n\n# 按 category 分组，同时算两个指标：订单数(orders)、总金额(revenue)\n# 按 revenue 降序，并把 category 变回普通列（reset_index）\n# 结果赋给 result，列名要正好是 category / orders / revenue\n',
+    check: [
+      'chk("result" in globals(), "还没有定义 result 变量")',
+      'chk(hasattr(result, "shape"), "result 应该是一个 DataFrame")',
+      'chk(list(result.columns) == ["category", "orders", "revenue"], "列名要正好是 category / orders / revenue，现在是 %s" % list(result.columns))',
+      'chk(len(result) == 5, "应该有 5 个类目，现在是 %d 行" % len(result))',
+      'import pandas as pd',
+      '_ref = pd.read_csv("data/orders.csv")',
+      '_d = _ref[_ref["status"] == "已完成"].groupby("category")["amount"].agg(["count", "sum"]).sort_values("sum", ascending=False)',
+      'chk(list(result["category"]) == list(_d.index), "类目顺序不对——要按总金额降序排")',
+      '_orders_exp = [int(x) for x in _d["count"]]',
+      '_orders_got = [int(x) for x in result["orders"]]',
+      'chk(_orders_got == _orders_exp, "orders（订单数）不对。应该是 %s，你算的是 %s" % (_orders_exp, _orders_got))',
+      '_rev_exp = [round(float(x), 2) for x in _d["sum"]]',
+      '_rev_got = [round(float(x), 2) for x in result["revenue"]]',
+      '_rev_bad = [i for i in range(5) if abs(_rev_got[i] - _rev_exp[i]) > 0.01]',
+      'chk(not _rev_bad, "这些类目的 revenue 不对：%s。应该是 %s" % ([_d.index[i] for i in _rev_bad], [_rev_exp[i] for i in _rev_bad]))'
+    ].join('\n'),
+    hints:[
+      'done.groupby("category")["amount"].agg(["count", "sum"]) 会得到一张带 count / sum 两列的表',
+      '排序：.sort_values("sum", ascending=False)；想让类目变回普通列用 .reset_index()',
+      '最后把列改名：.rename(columns={"count": "orders", "sum": "revenue"})'
+    ]
+  },
+
+  /* ---------- 第七章：多表与透视 ---------- */
+  {
+    id:'7-1', ch:7, title:'合并 · 两张表',
+    goal:'merge 把订单和商品拼成一张宽表',
+    brief:'订单表里只有 <code>product_id</code>，<b>成本在另一张表里</b>。<code>pd.merge()</code> 按共同的键把两张表拼起来，相当于 SQL 的 JOIN。<b>两边同名的列会变成 _x / _y</b>——这里 <code>category</code> 两张表都有，但 <code>amount</code> 和 <code>cost</code> 不受影响。',
+    mode:'check',
+    packages:['pandas'],
+    dataFiles:['data/orders.csv','data/products.csv'],
+    expect:[],
+    starter:'import pandas as pd\norders = pd.read_csv("data/orders.csv")\nproducts = pd.read_csv("data/products.csv")\n\n# 1. 只保留已完成的订单\ndone = orders[orders["status"] == "已完成"]\n\n# 2. 按 product_id 把商品表合并进来（how="left"）\n\n# 3. 算总毛利 = 金额 - 成本 × 数量，round 2 位，赋给 result\n',
+    check: [
+      'chk("result" in globals(), "还没有定义 result 变量")',
+      'try:',
+      '    _v = float(result)',
+      'except (TypeError, ValueError):',
+      '    chk(False, "result 应该是一个数字（总毛利），不是表")',
+      'import pandas as pd',
+      '_o = pd.read_csv("data/orders.csv")',
+      '_p = pd.read_csv("data/products.csv")',
+      '_m = pd.merge(_o[_o["status"] == "已完成"], _p, on="product_id", how="left")',
+      '_exp = _m["amount"] - _m["cost"] * _m["quantity"]',
+      '_delta = abs(_v - float(_exp.sum()))',
+      'chk(_delta < 1, "毛利对不上（差了 %.2f）。两件事最容易错：只该算「已完成」的订单；成本要乘数量，不能只减一次 cost" % _delta)'
+    ].join('\n'),
+    hints:[
+      'm = pd.merge(done, products, on="product_id", how="left")，合并后每行同时有 amount 和 cost',
+      '每行的毛利是 m["amount"] - m["cost"] * m["quantity"]',
+      '整体求和：round((m["amount"] - m["cost"] * m["quantity"]).sum(), 2)'
+    ]
+  },
+  {
+    id:'7-2', ch:7, title:'透视 · 交叉表',
+    goal:'pivot_table 做出类目 × 渠道的矩阵',
+    brief:'<code>groupby</code> 一次只能按一个维度分组。<code>pivot_table</code> 能同时铺开两个维度——<b>行是类目，列是渠道</b>，格子里放指标。这就是 Excel 里的「数据透视表」，pandas 一行代码就能做出来。',
+    mode:'check',
+    packages:['pandas'],
+    dataFiles:['data/orders.csv'],
+    expect:[],
+    starter:'import pandas as pd\ndf = pd.read_csv("data/orders.csv")\ndone = df[df["status"] == "已完成"]\n\n# 做一张透视表：\n#   行(index)  = category\n#   列(columns) = channel\n#   值(values)  = amount 求和\n#   空格子填 0（fill_value=0）\n# 结果赋给 result\n',
+    check: [
+      'chk("result" in globals(), "还没有定义 result 变量")',
+      'chk(hasattr(result, "shape"), "result 应该是一张透视表（DataFrame）")',
+      'chk(tuple(result.shape) == (5, 4), "应该是 5 个类目 × 4 个渠道，现在是 %s" % str(tuple(result.shape)))',
+      'import pandas as pd',
+      '_d = pd.read_csv("data/orders.csv")',
+      '_ex = pd.pivot_table(_d[_d["status"] == "已完成"], index="category", columns="channel", values="amount", aggfunc="sum", fill_value=0)',
+      'chk(set(result.columns) == set(_ex.columns), "列（渠道）不对，应该是 %s" % sorted(_ex.columns))',
+      'chk(set(result.index) == set(_ex.index), "行（类目）不对，应该是 %s" % sorted(_ex.index))',
+      '_g = result.sort_index().sort_index(axis=1)',
+      '_e = _ex.sort_index().sort_index(axis=1)',
+      '_cells = (_g - _e).abs()',
+      '_worst = float(_cells.values.max())',
+      '_worst_at = None',
+      'if _worst > 0.01:',
+      '    _pos = _cells.stack().idxmax()',
+      '    _worst_at = "%s × %s（应该是 %.2f，你填的是 %.2f）" % (_pos[0], _pos[1], float(_e.loc[_pos]), float(_g.loc[_pos]))',
+      'chk(_worst <= 0.01, "格子里有数不对：%s。透视表是每个「类目 × 渠道」组合各算一次，不是只对总数负责" % _worst_at)'
+    ].join('\n'),
+    hints:[
+      'pd.pivot_table(done, index="category", columns="channel", values="amount", aggfunc="sum")',
+      '再加 fill_value=0，把没有订单的组合填成 0 而不是 NaN',
+      '注意别把 index 和 columns 写反了——行是类目，列是渠道'
+    ]
+  },
+  {
+    id:'7-3', ch:7, title:'时间 · 按月看趋势',
+    goal:'把字符串转成时间，按月汇总',
+    brief:'<code>order_time</code> 读进来是<b>字符串</b>，不能直接按月分组。先用 <code>pd.to_datetime()</code> 转成时间类型，再用 <code>.dt</code> 访问器取年、月、星期。<b>注意用 parse_dates 更省事</b>：<code>read_csv(..., parse_dates=["order_time"])</code> 一步到位。',
+    mode:'check',
+    packages:['pandas'],
+    dataFiles:['data/orders.csv'],
+    expect:[],
+    starter:'import pandas as pd\ndf = pd.read_csv("data/orders.csv")\n\n# 1. order_time 目前是字符串，转成时间类型\ndf["order_time"] = pd.to_datetime(df["order_time"])\n\n# 2. 只保留已完成的订单\n\n# 3. 按月汇总金额，得到 6 行，列名必须是 month / revenue\n#    月份写成 "2024-01" 这种字符串（提示：.dt.strftime("%Y-%m")）\n',
+    check: [
+      'chk("result" in globals(), "还没有定义 result 变量")',
+      'chk(hasattr(result, "shape"), "result 应该是一张表（DataFrame）")',
+      'chk(list(result.columns) == ["month", "revenue"], "列名要正好是 month / revenue，现在是 %s" % list(result.columns))',
+      'chk(len(result) == 6, "应该有 6 个月（2024-01 到 2024-06），现在是 %d 行" % len(result))',
+      '_months = result["month"].astype(str).str.slice(0, 7).tolist()',
+      'chk(_months == ["2024-01","2024-02","2024-03","2024-04","2024-05","2024-06"], "月份不对或者没按时间排序，现在是 %s" % _months)',
+      'import pandas as pd',
+      '_d = pd.read_csv("data/orders.csv")',
+      '_d["m"] = pd.to_datetime(_d["order_time"]).dt.strftime("%Y-%m")',
+      '_exp = _d[_d["status"] == "已完成"].groupby("m")["amount"].sum()',
+      '_got = [round(float(x), 2) for x in result["revenue"]]',
+      '_bad = []',
+      'for _m, _v in zip(_months, _got):',
+      '    _e = round(float(_exp[_m]), 2)',
+      '    if abs(_v - _e) > 0.01:',
+      '        _bad.append("%s（应该 %.2f，你算 %.2f）" % (_m, _e, _v))',
+      'chk(not _bad, "这些月份的金额不对：%s" % "；".join(_bad))'
+    ].join('\n'),
+    hints:[
+      'df["order_time"] = pd.to_datetime(df["order_time"])',
+      'done["month"] = done["order_time"].dt.strftime("%Y-%m")，然后用 groupby("month")',
+      'groupby 完记得 reset_index() 变回普通列，再 rename(columns={"amount": "revenue"})'
+    ]
+  },
+  {
+    id:'7-4', ch:7, title:'BOSS · 退货率', boss:true,
+    goal:'算比率、排序、找出问题类目',
+    brief:'退货率 = 已退款订单数 ÷ 总订单数。这一关把前面的东西全用上：分组聚合、算比率、排序。<b>列名固定 category / orders / refunds / rate</b>，rate 保留 4 位小数，按 rate 从大到小排。注意分子分母都算「全部订单」，不是只算已完成的。',
+    mode:'check',
+    packages:['pandas'],
+    dataFiles:['data/orders.csv'],
+    expect:[],
+    starter:'import pandas as pd\ndf = pd.read_csv("data/orders.csv")\n\n# 1. 造一列标记：status 是 "已退款" 就是 1，否则 0\n\n# 2. 按 category 分组，同时算出：\n#      orders  = 该类的订单总数（用 order_id 计数）\n#      refunds = 该类退款单数之和\n# 3. 算 rate = refunds / orders，round 4 位\n# 4. 按 rate 降序，reset_index 掉旧索引\n# 5. 列名要正好是 category / orders / refunds / rate\n',
+    check: [
+      'chk("result" in globals(), "还没有定义 result 变量")',
+      'chk(hasattr(result, "shape"), "result 应该是一张表（DataFrame）")',
+      'chk(list(result.columns) == ["category", "orders", "refunds", "rate"], "列名要正好是 category / orders / refunds / rate，现在是 %s" % list(result.columns))',
+      'chk(len(result) == 5, "应该有 5 个类目，现在是 %d 行" % len(result))',
+      'import pandas as pd',
+      '_d = pd.read_csv("data/orders.csv")',
+      '_g = _d.groupby("category").agg(orders=("order_id", "count"), refunds=("status", lambda s: int((s == "已退款").sum()))).reset_index()',
+      '_g["rate"] = (_g["refunds"] / _g["orders"]).round(4)',
+      '_g = _g.sort_values("rate", ascending=False).reset_index(drop=True)',
+      'chk(list(result["category"]) == list(_g["category"]), "类目顺序不对，要按退货率从大到小排")',
+      '_r = [round(float(x), 4) for x in result["rate"]]',
+      '_e = [round(float(x), 4) for x in _g["rate"]]',
+      'chk(_r == _e, "退货率算错了。应该是 退款单数 ÷ 总订单数，不是 ÷ 已完成单数")'
+    ].join('\n'),
+    hints:[
+      'df["is_refund"] = (df["status"] == "已退款").astype(int)',
+      'g = df.groupby("category").agg(orders=("order_id", "count"), refunds=("is_refund", "sum")).reset_index()',
+      'g["rate"] = (g["refunds"] / g["orders"]).round(4)，最后 sort_values("rate", ascending=False) 再 reset_index(drop=True)'
+    ]
+  },
+
+  /* ---------- 第八章：可视化 ---------- */
+  {
+    id:'8-1', ch:8, title:'折线 · 月度趋势',
+    goal:'画出第一张图：按月收入的折线',
+    brief:'matplotlib 的画法固定三步：<code>fig, ax = plt.subplots()</code> 建画布，<code>ax.plot()</code> 画上去，<code>set_title</code> / <code>set_xlabel</code> / <code>set_ylabel</code> 补说明。<b>最后把 fig 赋给 result</b>，判题靠它。<br>中文字体已经配好了，标题直接写中文即可。',
+    mode:'check',
+    packages:['pandas','matplotlib'],
+    dataFiles:['data/orders.csv','data/NotoSansSC-Subset.otf'],
+    showFigure:true,
+    expect:[],
+    starter:'import matplotlib\nmatplotlib.use("Agg")          # 浏览器里必须用这个后端\nimport matplotlib.pyplot as plt\nimport pandas as pd\n\ndf = pd.read_csv("data/orders.csv")\ndf["order_time"] = pd.to_datetime(df["order_time"])\ndone = df[df["status"] == "已完成"]\ng = done.assign(m=done["order_time"].dt.strftime("%Y-%m")).groupby("m")["amount"].sum()\n\nfig, ax = plt.subplots(figsize=(6, 3.6))\n# 1. 画折线：x 是月份，y 是金额，加 marker="o" 让点看得见\n\n# 2. 加标题、x 轴标签、y 轴标签\n\n# 3. 把 fig 赋给 result\n',
+    check: [
+      'chk("result" in globals(), "还没有定义 result 变量")',
+      'chk(hasattr(result, "axes"), "result 应该是一个 Figure——把 plt.subplots() 返回的 fig 赋给它，不是 ax")',
+      'chk(len(result.axes) == 1, "这一关只需要一张子图，检测到 %d 个" % len(result.axes))',
+      'ax = result.axes[0]',
+      'chk(len(ax.get_lines()) == 1, "应该正好画一条折线，现在是 %d 条" % len(ax.get_lines()))',
+      'import pandas as pd',
+      '_d = pd.read_csv("data/orders.csv")',
+      '_d["m"] = pd.to_datetime(_d["order_time"]).dt.strftime("%Y-%m")',
+      '_exp = _d[_d["status"] == "已完成"].groupby("m")["amount"].sum()',
+      '_got = [round(float(v), 2) for v in ax.get_lines()[0].get_ydata()]',
+      'chk(len(_got) == 6, "折线上应该有 6 个点（6 个月），现在是 %d 个" % len(_got))',
+      '_wrong = [i for i in range(min(len(_got), 6)) if abs(_got[i] - round(float(_exp.iloc[i]), 2)) > 0.01]',
+      'chk(not _wrong, "第 %s 个点的数值不对。应该按月汇总「已完成」的金额" % [_i + 1 for _i in _wrong])',
+      'chk(ax.get_title().strip() != "", "没有标题，用 ax.set_title(\\"月度收入趋势\\")")',
+      'chk(ax.get_xlabel().strip() != "", "x 轴没有标签，用 ax.set_xlabel(...)")',
+      'chk(ax.get_ylabel().strip() != "", "y 轴没有标签，用 ax.set_ylabel(...)")'
+    ].join('\n'),
+    hints:[
+      'ax.plot(list(g.index), list(g.values), marker="o")，g 的 index 是月份字符串',
+      '标题和轴标签：ax.set_title("...")、ax.set_xlabel("...")、ax.set_ylabel("...")',
+      '最后 result = fig（不是 ax），这样判题和出图都能拿到整张画布'
+    ]
+  },
+  {
+    id:'8-2', ch:8, title:'柱状 · 类目对比',
+    goal:'用柱子比大小，别忘了先排序',
+    brief:'柱状图最适合比大小，但<b>没有排序的柱状图等于没画</b>——读者得自己在脑子里排一遍。这一关要求按收入从高到低排好再画。<br>柱子在 matplotlib 里叫 <code>ax.patches</code>，每一根都能取出 <code>get_height()</code>，判题就是这么查的。',
+    mode:'check',
+    packages:['pandas','matplotlib'],
+    dataFiles:['data/orders.csv','data/NotoSansSC-Subset.otf'],
+    showFigure:true,
+    expect:[],
+    starter:'import matplotlib\nmatplotlib.use("Agg")\nimport matplotlib.pyplot as plt\nimport pandas as pd\n\ndf = pd.read_csv("data/orders.csv")\ndone = df[df["status"] == "已完成"]\nrev = done.groupby("category")["amount"].sum().sort_values(ascending=False)\n\nfig, ax = plt.subplots(figsize=(6, 3.4))\n# 1. 画柱状图（ax.bar）\n\n# 2. 加标题和轴标签\n\n# 3. result = fig\n',
+    check: [
+      'chk("result" in globals(), "还没有定义 result 变量")',
+      'chk(hasattr(result, "axes"), "result 应该是一个 Figure")',
+      'ax = result.axes[0]',
+      '_bars = list(ax.patches)',
+      'chk(len(_bars) == 5, "应该有 5 根柱子（5 个类目），现在是 %d 根" % len(_bars))',
+      '_h = [round(float(b.get_height()), 2) for b in _bars]',
+      'chk(_h == sorted(_h, reverse=True), "柱子没有按收入从高到低排——先 sort_values(ascending=False) 再画")',
+      'import pandas as pd',
+      '_d = pd.read_csv("data/orders.csv")',
+      '_exp = [round(float(v), 2) for v in _d[_d["status"] == "已完成"].groupby("category")["amount"].sum().sort_values(ascending=False)]',
+      '_diff = [i for i in range(min(len(_h), 5)) if abs(_h[i] - _exp[i]) > 0.01]',
+      'chk(not _diff, "第 %s 根柱子的高度不对，应该是 %s" % ([i + 1 for i in _diff], [_exp[i] for i in _diff]))',
+      'chk(ax.get_title().strip() != "", "没有标题，用 ax.set_title(...)")',
+      'chk(ax.get_ylabel().strip() != "", "y 轴没有标签，用 ax.set_ylabel(...)")'
+    ].join('\n'),
+    hints:[
+      'ax.bar(rev.index, rev.values)——rev 已经按收入降序排好了',
+      '加标题和 y 轴标签：ax.set_title("各类目收入")、ax.set_ylabel("金额（元）")',
+      '别忘了 ax.set_xticks 之后如果类目名重叠可以旋转：plt.setp(ax.get_xticklabels(), rotation=0)，不过 5 个类目一般不挤'
+    ]
+  },
+  {
+    id:'8-3', ch:8, title:'BOSS · 双系列对比',
+    goal:'一张图里放两组数据，配上图例',
+    brief:'只画一条线看不出对比。<b>画两条线再叫 legend() 出图例</b>，才是能拿给老板看的样子。<br>注意图例文字来自 <code>plot(..., label="已完成")</code> 里的 label —— 不写 label，legend() 出来是空的。',
+    mode:'check',
+    packages:['pandas','matplotlib'],
+    dataFiles:['data/orders.csv','data/NotoSansSC-Subset.otf'],
+    showFigure:true,
+    expect:[],
+    starter:'import matplotlib\nmatplotlib.use("Agg")\nimport matplotlib.pyplot as plt\nimport pandas as pd\n\ndf = pd.read_csv("data/orders.csv")\ndf["order_time"] = pd.to_datetime(df["order_time"])\ndf["m"] = df["order_time"].dt.strftime("%Y-%m")\n\ndone = df[df["status"] == "已完成"].groupby("m")["amount"].sum()\nrefund = df[df["status"] == "已退款"].groupby("m")["amount"].sum()\n\nfig, ax = plt.subplots(figsize=(6, 3.6))\n# 1. 画两条线，各自带 label="已完成" / label="已退款"（其中一条用 marker="s"）\n\n# 2. 加标题、轴标签\n\n# 3. 加图例 ax.legend()\n\n# 4. result = fig\n',
+    check: [
+      'chk("result" in globals(), "还没有定义 result 变量")',
+      'chk(hasattr(result, "axes"), "result 应该是一个 Figure")',
+      'ax = result.axes[0]',
+      '_lines = list(ax.get_lines())',
+      'chk(len(_lines) == 2, "应该画两条线（已完成 / 已退款），现在是 %d 条" % len(_lines))',
+      'import pandas as pd',
+      '_d = pd.read_csv("data/orders.csv")',
+      '_d["m"] = pd.to_datetime(_d["order_time"]).dt.strftime("%Y-%m")',
+      '_done = [round(float(v), 2) for v in _d[_d["status"] == "已完成"].groupby("m")["amount"].sum()]',
+      '_refund = [round(float(v), 2) for v in _d[_d["status"] == "已退款"].groupby("m")["amount"].sum()]',
+      '_y0 = [round(float(v), 2) for v in _lines[0].get_ydata()]',
+      '_y1 = [round(float(v), 2) for v in _lines[1].get_ydata()]',
+      '_ok = (len(_y0) == 6 and len(_y1) == 6)',
+      'chk(_ok, "每条线上都该有 6 个点，现在是 %d 和 %d" % (len(_y0), len(_y1)))',
+      '_m0 = [i for i in range(6) if abs(_y0[i] - _done[i]) > 0.01]',
+      '_m1 = [i for i in range(6) if abs(_y1[i] - _refund[i]) > 0.01]',
+      '_bad = []',
+      'if _m0: _bad.append("已完成")',
+      'if _m1: _bad.append("已退款")',
+      'chk(not _bad, "这些系列的数据不对：%s。两条线要分别对应「已完成」和「已退款」" % _bad)',
+      '_leg = ax.get_legend()',
+      'chk(_leg is not None, "没有图例。请先在 plot() 里加 label 参数，再调用 ax.legend()")',
+      '_lt = [t.get_text() for t in _leg.get_texts()]',
+      'chk(len(_lt) == 2, "图例应该有 2 项，现在是 %s" % _lt)',
+      'chk(any("已完成" in x for x in _lt) and any("退款" in x for x in _lt), "图例文字应该是「已完成」和「已退款」，现在是 %s" % _lt)',
+      'chk(ax.get_title().strip() != "", "没有标题")'
+    ].join('\n'),
+    hints:[
+      'ax.plot(list(done.index), list(done.values), marker="o", label="已完成")',
+      '第二条用 marker="s" 区分形状，再加 ax.legend()',
+      '标题写清楚对比的是什么，比如 ax.set_title("已完成 vs 已退款金额对比")'
+    ]
+  },
+
+  /* ---------- 第九章：项目实战 ---------- */
+  {
+    id:'9-1', ch:9, title:'BOSS · 经营分析报告', boss:true,
+    goal:'没有填空引导，从需求到报告自己走一遍',
+    brief:'前面 30 关都是「教一个知识点，你练一个动作」。这一关不一样：<b>只给你一段需求</b>，怎么切数据、怎么算、怎么画，你自己定。<br>运营总监要一份 2024 上半年的经营复盘，明天开会用。做完会生成一份可以下载的报告——那份东西比 31 个关卡更能说明问题。',
+    mode:'check',
+    packages:['pandas','matplotlib'],
+    dataFiles:['data/orders.csv','data/NotoSansSC-Subset.otf'],
+    showFigure:true,
+    report:true,
+    expect:[],
+    starter:'import matplotlib\nmatplotlib.use("Agg")\nimport matplotlib.pyplot as plt\nimport pandas as pd\n\ndf = pd.read_csv("data/orders.csv")\ndone = df[df["status"] == "已完成"]\n\n# ============ 1. 整体盘子 ============\ngmv = ...        # 已完成订单的总金额\norders = ...     # 已完成订单数\naov = ...        # 客单价 = gmv / orders，保留 2 位\nrefund_rate = ...  # 退款率 = 已退款单数 / 全部订单数，保留 4 位\n\n# ============ 2. 类目结构 ============\n# 每个类目的 GMV，以及每个类目的客单价\ntop_category = ...        # GMV 最高的类目\nbest_aov_category = ...   # 客单价最高的类目\n\n# ============ 3. 月度走势 ============\n# 6 个月的 GMV 列表，从 2024-01 到 2024-06，保留 2 位\nmonthly = [...]\n\n# ============ 4. 画一张月度趋势图 ============\nfig, ax = plt.subplots(figsize=(6, 3.6))\n\n# ============ 5. 组装交付物 ============\nreport = {\n    "gmv": gmv,\n    "orders": orders,\n    "aov": aov,\n    "refund_rate": refund_rate,\n    "top_category": top_category,\n    "best_aov_category": best_aov_category,\n    "monthly": monthly,\n}\n',
+    check: [
+      'chk("report" in globals(), "还没有定义 report 字典")',
+      'chk(isinstance(report, dict), "report 应该是一个 dict")',
+      'import pandas as pd',
+      '_d = pd.read_csv("data/orders.csv")',
+      '_done = _d[_d["status"] == "已完成"]',
+      '_e_gmv = round(float(_done["amount"].sum()), 2)',
+      'chk("gmv" in report, "report 里缺 gmv")',
+      'try: _gmv = float(report["gmv"])',
+      'except (TypeError, ValueError): chk(False, "gmv 应该是数字")',
+      'chk(abs(_gmv - _e_gmv) < 1, "GMV 不对，应该是 %.2f（只算已完成订单）" % _e_gmv)',
+      '_e_orders = int(len(_done))',
+      'chk("orders" in report, "report 里缺 orders")',
+      'chk(int(report["orders"]) == _e_orders if "orders" in report else False, "订单数不对，已完成订单有 %d 笔" % _e_orders)',
+      '_e_aov = round(_e_gmv / _e_orders, 2)',
+      'chk("aov" in report, "report 里缺 aov")',
+      'chk(abs(float(report["aov"]) - _e_aov) < 0.05, "客单价不对，应该是 %.2f（GMV ÷ 已完成订单数，别拿总订单数当分母）" % _e_aov)',
+      '_e_rr = round(int((_d["status"] == "已退款").sum()) / len(_d), 4)',
+      'chk("refund_rate" in report, "report 里缺 refund_rate")',
+      'chk(abs(float(report["refund_rate"]) - _e_rr) < 0.0005, "退款率不对，应该是 %.4f（已退款单数 ÷ 全部订单数）" % _e_rr)',
+      '_cg = _done.groupby("category")["amount"].agg(["sum", "count"])',
+      '_cg["aov"] = _cg["sum"] / _cg["count"]',
+      '_e_top = _cg["sum"].idxmax()',
+      'chk("top_category" in report, "report 里缺 top_category")',
+      'chk(str(report["top_category"]) == _e_top, "GMV 最高的类目是「%s」" % _e_top)',
+      '_e_best = _cg["aov"].idxmax()',
+      'chk("best_aov_category" in report, "report 里缺 best_aov_category")',
+      'chk(str(report["best_aov_category"]) == _e_best, "客单价最高的类目是「%s」（不是 GMV 最高的那个，两个要分开算）" % _e_best)',
+      '_e_m = [round(float(v), 2) for v in _done.assign(m=pd.to_datetime(_done["order_time"]).dt.strftime("%Y-%m")).groupby("m")["amount"].sum()]',
+      'chk("monthly" in report, "report 里缺 monthly")',
+      'chk(isinstance(report["monthly"], (list, tuple)), "monthly 应该是一个列表")',
+      'chk(len(report["monthly"]) == 6, "monthly 应该有 6 个值，现在是 %d 个" % len(report["monthly"]))',
+      '_bad = [i + 1 for i in range(6) if abs(float(report["monthly"][i]) - _e_m[i]) > 1]',
+      'chk(not _bad, "第 %s 个月的 GMV 不对，按月汇总「已完成」的金额" % _bad)',
+      'chk("fig" in globals(), "还没有画图，把图赋给 fig")',
+      'chk(hasattr(fig, "axes"), "fig 应该是一个 Figure 对象")',
+      'chk(len(fig.axes[0].get_lines()) >= 1, "图里还没有数据，用 ax.plot(...) 把月度走势画上去")',
+      'chk(fig.axes[0].get_title().strip() != "", "图没有标题，用 ax.set_title(...)")'
+    ].join('\n'),
+    hints:[
+      '整体盘子：gmv = round(done["amount"].sum(), 2)；orders = len(done)；aov = round(gmv / orders, 2)',
+      '退款率用全部订单当分母：round(int((df["status"] == "已退款").sum()) / len(df), 4)',
+      '类目客单价：done.groupby("category")["amount"].agg(["sum","count"])，两列相除再 idxmax()',
+      '月度：done.assign(m=pd.to_datetime(done["order_time"]).dt.strftime("%Y-%m")).groupby("m")["amount"].sum()',
+      '画图：ax.plot(月份列表, 金额列表, marker="o")，再加 set_title / set_xlabel / set_ylabel'
+    ]
+  }
+];
+
+/* =========================================================
+   1.5 理论卡：每关「概念 → 示例 → 动手」
+   ========================================================= */
+const THEORY = {
+  '1-1':[
+    { h:'print() 是函数，不是命令', p:'括号里放什么，屏幕就打印什么。<b>字符串</b>要加引号，<b>数字</b>不用。', code:'print(2026)\nprint("Hello, Python")' },
+    { h:'引号决定类型，也决定结果', p:'同样几个字符，加引号是文字，不加引号是算式。这是学 Python 的第一道分水岭。', code:'print(3 + 4)\nprint("3 + 4")' },
+    { h:'一行一条指令，从上往下执行', p:'Python 顺序执行每一行。大小写、逗号、空格差一点，打印出来就不是你要的样子。', code:'print("第一行")\nprint("第二行")' }
+  ],
+  '1-2':[
+    { h:'变量是贴了标签的盒子', p:'<code>x = 7</code> 不是数学里的"x 等于 7"，而是"把 7 放进名叫 x 的盒子"。所以它随时可以被改。', code:'x = 7\nx = x + 1\nprint(x)' },
+    { h:'不写引号才是数字', p:'<code>"7"</code> 是文字，<code>7</code> 是数字。前者相加是拼接，后者相加是算术。', code:'print(7 + 5)\nprint("7" + "5")' },
+    { h:'一次给多个变量赋值', p:'等号右边先全部算完，再依次放进左边的盒子里。', code:'a, b = 3, 4\nprint(a * b)' }
+  ],
+  '1-3':[
+    { h:'+ 对字符串是拼接', p:'两个字符串用 <code>+</code> 首尾相连。数字和字符串不能直接相加，会报 TypeError。', code:'print("Py" + "thon")' },
+    { h:'空格也属于字符串', p:'<code>"I love "</code> 末尾那个空格不能省，否则会拼成 <code>I lovePython</code>。', code:'name = "Python"\nprint("I love " + name)\nprint("I love" + name)' },
+    { h:'字符串乘整数 = 重复', p:'画分隔线、画图形时特别顺手。', code:'print("Py" * 3)\nprint("-" * 20)' }
+  ],
+  '1-4':[
+    { h:'** 是乘方', p:'<code>r ** 2</code> 就是 r 的平方，<code>r ** 0.5</code> 是开平方。<b>不是异或</b>。', code:'r = 3\nprint(r ** 2)\nprint(3 * 3)' },
+    { h:'round(值, 位数) 做四舍五入', p:'第二个参数是要保留的小数位。省略它就取整。', code:'print(round(28.26, 1))\nprint(round(28.26))' },
+    { h:'/ 和 // 不是一回事', p:'<code>/</code> 普通除法，结果带小数；<code>//</code> 整除，只留整数部分（向下取整）。', code:'print(7 / 2)\nprint(7 // 2)' }
+  ],
+
+  '2-1':[
+    { h:'冒号 + 缩进 = 代码块', p:'Python 不用大括号，用<b>缩进</b>表示从属关系。<code>if</code> 行末必须有冒号，下一行缩进 4 个空格。缩进错位是最常见的报错来源。', code:'n = 7\nif n > 5:\n    print("大于 5")\n    print("这两行都从属于 if")\nprint("这一行已经退出 if")' },
+    { h:'== 是比较，= 是赋值', p:'写成 <code>if n = 7</code> 会直接语法报错。判断相等必须两个等号。', code:'n = 7\nprint(n == 7)\nprint(n != 7)' },
+    { h:'% 取余数，用来判断整除', p:'<code>n % 2</code> 得 0 就说明能被 2 整除。判断奇偶、倍数都靠它。', code:'print(7 % 2)\nprint(8 % 2)' }
+  ],
+  '2-2':[
+    { h:'elif 是 else if 的缩写', p:'条件从上往下依次判断，<b>第一个成立的分支执行完就整体跳出</b>，后面的不再检查。', code:'score = 86\nif score >= 90:\n    print("A")\nelif score >= 80:\n    print("B")\nelse:\n    print("C")' },
+    { h:'顺序错了结果就错', p:'如果把 <code>score >= 70</code> 写在最前面，86 分会被判成 C。区间判断要<b>从大到小</b>排。', code:'score = 86\nif score >= 70:\n    print("C  ← 被抢先匹配了")' },
+    { h:'多个独立 if 会各自执行', p:'<code>elif</code> 是互斥的；拆成三个独立 <code>if</code>，可能同时命中好几个分支。', code:'n = 100\nif n > 10:\n    print("大于 10")\nif n > 50:\n    print("大于 50")' }
+  ],
+  '2-3':[
+    { h:'True / False 首字母必须大写', p:'小写 <code>true</code> 会被当成一个没定义的变量，报 NameError。', code:'print(True)\nprint(3 > 2)\nprint(3 > 5)' },
+    { h:'and / or / not 组合条件', p:'<code>and</code> 两边都真才真，<code>or</code> 一边真就真，<code>not</code> 取反。括号只影响<b>谁先算</b>，不改变逻辑本身。', code:'a, b = 5, 9\nprint(a > 1 and b > 5)\nprint(a > 8 or b > 5)\nprint(not a > 8)' },
+    { h:'比较运算本身就是布尔值', p:'不用写 <code>if x == True</code>，条件可以直接交给 print 或 if。', code:'year = 2024\nprint((year % 4 == 0 and year % 100 != 0) or year % 400 == 0)' }
+  ],
+  '2-4':[
+    { h:'打擂台：先立擂主，再逐个挑战', p:'把第一个数当当前最大值，后面每个都比一比，更大就换人。循环结束时擂主就是最大值。', code:'nums = [3, 9, 5]\nbig = nums[0]\nfor x in nums:\n    if x > big:\n        big = x\nprint(big)' },
+    { h:'初始化不能想当然写 0', p:'如果所有数都是负数，把最大值初始化成 0 会得到错误答案。拿<b>第一个元素</b>当擂主才安全。', code:'nums = [-3, -9, -5]\nbig = 0\nfor x in nums:\n    if x > big:\n        big = x\nprint(big, "← 错")' },
+    { h:'链式比较更贴近人话', p:'Python 允许 <code>a &lt; b &lt; c</code> 连写，等价于 <code>a &lt; b and b &lt; c</code>。', code:'a, b, c = 3, 9, 5\nprint(a < b < c)' }
+  ],
+
+  '3-1':[
+    { h:'range 含头不含尾', p:'<code>range(1, 6)</code> 得到 1、2、3、4、5，<b>没有 6</b>。这条规则在切片里同样成立。', code:'for i in range(1, 6):\n    print(i)' },
+    { h:'三种常见写法', p:'<code>range(5)</code> 从 0 开始；<code>range(1, 6)</code> 指定起止；<code>range(1, 10, 2)</code> 再加步长。', code:'for i in range(5):\n    print(i, end=" ")\nprint()\nfor i in range(1, 10, 2):\n    print(i, end=" ")' },
+    { h:'循环体靠缩进，不靠括号', p:'缩进几行，循环就重复几行；退出缩进就回到循环外面。', code:'for i in range(3):\n    print("循环内", i)\nprint("循环结束")' }
+  ],
+  '3-2':[
+    { h:'累加器模式：从 0 开始，逐轮倒进去', p:'准备一个变量当桶，每轮往里倒一点。这个模式后面做求和、计数、统计都能直接套。', code:'total = 0\nfor i in range(1, 6):\n    total = total + i\nprint(total)' },
+    { h:'+= 是"加完再存回去"', p:'<code>total += i</code> 完全等价于 <code>total = total + i</code>，只是更短。', code:'total = 0\nfor i in range(1, 6):\n    total += i\nprint(total)' },
+    { h:'终点写 101 才到 100', p:'因为不含尾巴，1 到 100 得写 <code>range(1, 101)</code>。这就是经典的差一错误。', code:'print(sum(range(1, 101)))' }
+  ],
+  '3-3':[
+    { h:'while：条件为真就一直做', p:'<code>for</code> 是用来数次数的，<code>while</code> 是看条件的。不知道要循环几次时用它。', code:'n = 3\nwhile n < 20:\n    print(n, end=" ")\n    n = n + 3' },
+    { h:'忘了自增就是死循环', p:'循环体里必须有办法让条件<b>有朝一日变假</b>。下面这一行 <code>n = n + 3</code> 一旦删掉，程序就永远停不下来，只能等 3 秒后被强制掐断。', code:'n = 3\nwhile n < 20:\n    print(n)\n    n = n + 3   # ← 删掉这一行试试（会被强制中断）' },
+    { h:'join 把列表拼成一行', p:'<code>分隔符.join(列表)</code> 只能拼字符串，数字要先 <code>str()</code> 转换。分隔符写在 join <b>前面</b>。', code:'parts = ["3", "6", "9"]\nprint(",".join(parts))\nprint("-".join(parts))' }
+  ],
+  '3-4':[
+    { h:'字符串乘整数 = 重复', p:'第 i 行要 i 个星号，直接 <code>"*" * i</code>，比拼嵌套循环短得多。', code:'for i in range(1, 5):\n    print("*" * i)' },
+    { h:'print 的 end 参数控制结尾', p:'默认每次 print 后换行；<code>end=""</code> 表示不换行，适合内层循环逐个打印。', code:'for i in range(3):\n    print("*", end="")\nprint()\nprint("打完了")' },
+    { h:'嵌套循环：外层管行，内层管列', p:'外层走一轮，内层完整走一遍。画表格、画图形都是这个结构。', code:'for i in range(1, 5):\n    for j in range(i):\n        print("*", end="")\n    print()' }
+  ],
+
+  '4-1':[
+    { h:'列表：有序、可变、能装任何东西', p:'方括号包起来、逗号分隔。<code>len()</code> 取长度，<code>nums[0]</code> 取第一个。索引从 <b>0</b> 开始，<code>nums[-1]</code> 是最后一个。', code:'nums = [3, 8, 2]\nprint(len(nums))\nprint(nums[0])\nprint(nums[-1])' },
+    { h:'for x in 列表 直接拿元素', p:'不需要下标，Python 挨个把元素交给你。这里写 <code>range(len(nums))</code> 是多余的。', code:'nums = [3, 8, 2]\nfor x in nums:\n    print(x * 2)' },
+    { h:'边遍历边删元素会漏项', p:'列表长度在循环中变化，会导致跳过某些元素。要改列表就先复制一份（<code>nums[:]</code>）再遍历。', code:'nums = [1, 2, 3]\nfor x in nums[:]:\n    if x == 2:\n        nums.remove(x)\nprint(nums)' }
+  ],
+  '4-2':[
+    { h:'切片 [起:止] 含头不含尾', p:'<code>nums[0:3]</code> 取下标 0、1、2，第 3 个不算。起点是 0 时可以省成 <code>nums[:3]</code>。', code:'nums = [3, 8, 2, 9, 5]\nprint(nums[:3])\nprint(nums[1:3])\nprint(nums[2:])' },
+    { h:'负索引从尾巴数', p:'<code>nums[-1]</code> 是最后一个，<code>nums[-2:]</code> 是最后两个。', code:'nums = [3, 8, 2, 9, 5]\nprint(nums[-1])\nprint(nums[-2:])' },
+    { h:'直接 print 列表会带上方括号', p:'Python 打印列表时保留方括号和逗号，正是我们期望输出的样子。如果分别 print 三个元素，就没有方括号了。', code:'nums = [3, 8, 2]\nprint(nums)\nprint(nums[0], nums[1], nums[2])' }
+  ],
+  '4-3':[
+    { h:'字典：键 → 值的映射', p:'花括号创建，<code>d[键] = 值</code> 存入，<code>d[键]</code> 取出。<b>取不存在的键会直接报 KeyError</b>。', code:'d = {}\nd["apple"] = 1\nd["banana"] = 2\nprint(d["apple"])\nprint(d)' },
+    { h:'get(键, 默认值) 更安全', p:'取不到时返回你给的默认值而不是报错。统计词频就靠这一行：<code>counts[w] = counts.get(w, 0) + 1</code>。', code:'words = ["apple", "banana", "apple"]\ncounts = {}\nfor w in words:\n    counts[w] = counts.get(w, 0) + 1\nprint(counts)' },
+    { h:'in 判断的是键，不是值', p:'<code>"apple" in d</code> 检查 apple 是不是一个键。要查值得用 <code>d.values()</code>。', code:'d = {"apple": 3}\nprint("apple" in d)\nprint(3 in d.values())' }
+  ],
+  '4-4':[
+    { h:'推导式 = 循环 + 筛选 + 加工', p:'读法：先看 <code>for</code>（遍历谁），再看 <code>if</code>（筛什么），最后看最前面（对每个元素做什么）。', code:'print([x * x for x in range(1, 11) if x % 2 == 0])' },
+    { h:'它等价于这么几行 for', p:'推导式不是新魔法，只是把"建空列表 → 循环 → 判断 → append"压成了一行。看不懂就展开成循环。', code:'result = []\nfor x in range(1, 11):\n    if x % 2 == 0:\n        result.append(x * x)\nprint(result)' },
+    { h:'最前面的表达式可以加工 x', p:'<code>[str(x) for x in ...]</code> 得到字符串列表，<code>[x + 1 for x in ...]</code> 得到每个元素加一。', code:'print([str(x) for x in range(3)])\nprint([x + 1 for x in range(3)])' }
+  ],
+
+  '5-1':[
+    { h:'def 定义，return 交回结果', p:'<code>def</code> 只是把这个函数"登记"下来，并不会执行。<b>调用时才跑</b>：写 <code>square(7)</code> 才真的算一次。', code:'def square(n):\n    return n * n\n\nprint(square(7))\nprint(square(3) + square(4))' },
+    { h:'return 和 print 是两件事', p:'<code>print</code> 是喊一声给人看；<code>return</code> 是把值交给调用者。函数里只 print 不 return，外面拿到的是 <code>None</code>。', code:'def f1(n):\n    print(n * n)\n\ndef f2(n):\n    return n * n\n\nprint(f1(3), "← f1 没有返回值")\nprint(f2(3) + 1, "← f2 的返回值能继续算")' },
+    { h:'函数里改的是局部变量', p:'函数内部赋值会创建局部变量，不会影响外面同名的变量。要拿结果，就用 return 传出来。', code:'x = 1\ndef change():\n    x = 99\nchange()\nprint(x)' }
+  ],
+  '5-2':[
+    { h:'默认参数：不给就用它', p:'<code>def greet(name, greeting="Hello")</code> 的第二个参数有默认值，所以 <code>greet("Ann")</code> 也能调用。', code:'def greet(name, greeting="Hello"):\n    return greeting + ", " + name\n\nprint(greet("Ann"))\nprint(greet("Bob", "Hi"))' },
+    { h:'带默认值的参数必须放最后', p:'<code>def f(a=1, b)</code> 是语法错误。Python 从左往右按位置匹配参数，有默认值的放前面会让后面的参数没法按位置传。', code:'def greet(name, greeting="Hello"):\n    return greeting + ", " + name\n\nprint(greet(greeting="Hi", name="Cy"))' },
+    { h:'关键字参数让调用更清楚', p:'调用时写 <code>greeting="Hi"</code>，就不用记参数顺序。参数一多，这招能省掉大量查文档的时间。', code:'def box(w, h, color="black"):\n    return color + " " + str(w) + "x" + str(h)\n\nprint(box(3, 4))\nprint(box(h=4, w=3, color="red"))' }
+  ],
+  '5-3':[
+    { h:'递归 = 出口 + 递推', p:'<b>出口</b>是让它停下来的条件，<b>递推</b>是把问题缩小一号再交给自己。少任何一半都不成立。', code:'def fact(n):\n    if n <= 1:\n        return 1\n    return n * fact(n - 1)\n\nprint(fact(6))' },
+    { h:'没出口就是无限递归', p:'Python 默认递归深度约 1000 层，超过就抛 <code>RecursionError</code>。看到这个报错，先检查出口写没写、写对没写对。', code:'def boom(n):\n    return boom(n + 1)\n\n# 真跑会报 RecursionError，这里只演示结构\nprint("出口条件不能少")' },
+    { h:'递归能解的，循环也能解', p:'能用循环就别用递归——更快、也不容易爆栈。递归真正擅长的是"结构本身嵌套"的问题：树、目录、嵌套列表。', code:'def fact_loop(n):\n    r = 1\n    for i in range(1, n + 1):\n        r = r * i\n    return r\n\nprint(fact_loop(6))' }
+  ],
+  '5-4':[
+    { h:'条件顺序决定结果', p:'15 的倍数同时是 3 和 5 的倍数。如果先判 3 的倍数，15 会变成 Fizz 而不是 FizzBuzz。所以<b>最严格的条件放最前</b>。', code:'for i in [3, 5, 15]:\n    if i % 15 == 0:\n        print(i, "→ FizzBuzz")\n    elif i % 3 == 0:\n        print(i, "→ Fizz")\n    elif i % 5 == 0:\n        print(i, "→ Buzz")' },
+    { h:'else 兜住所有剩下的情况', p:'elif 链最后用 else 收尾，保证每个元素都有输出，不会漏项。', code:'n = 7\nif n % 15 == 0:\n    print("FizzBuzz")\nelif n % 3 == 0:\n    print("Fizz")\nelif n % 5 == 0:\n    print("Buzz")\nelse:\n    print(n)' },
+    { h:'先收进列表，最后统一拼接', p:'一边循环一边拼字符串会越来越慢（每加一次都要新建一个字符串）。先 append 到列表、最后 join 一次才是标准写法。', code:'parts = []\nfor i in range(1, 6):\n    parts.append(str(i))\nprint(",".join(parts))' }
+  ],
+
+  '6-1':[
+    { h:'DataFrame 就是一张表', p:'<code>pd.read_csv()</code> 把 CSV 读成 DataFrame。<b>shape</b> 是（行数, 列数），<b>columns</b> 是列名，<b>head()</b> 看前几行。拿到数据先做这三件事，比急着写分析重要得多。', code:'import pandas as pd\ndf = pd.read_csv("data/orders.csv")\nprint(df.shape)\nprint(df.columns.tolist())\nprint(df.head(2))', packages:['pandas'], data:['data/orders.csv'] },
+    { h:'布尔筛选：df[条件]', p:'<code>df["status"] == "已完成"</code> 不是判断一次，而是<b>对每一行都判断</b>，得到一列 True/False。再把它塞回 <code>df[...]</code>，就只留下 True 的行。', code:'import pandas as pd\ndf = pd.read_csv("data/orders.csv")\nmask = df["status"] == "已完成"\nprint(type(mask), len(mask))\nprint(len(df[mask]))', packages:['pandas'], data:['data/orders.csv'] },
+    { h:'取一列，再聚合', p:'<code>df["amount"]</code> 取出这一列（Series），后面可以接 <code>.sum()</code>、<code>.mean()</code>、<code>.max()</code>。金额记得 <code>round(..., 2)</code>，否则会打印一长串小数。', code:'import pandas as pd\ndf = pd.read_csv("data/orders.csv")\ndone = df[df["status"] == "已完成"]\nprint(round(done["amount"].sum(), 2))\nprint(round(done["amount"].mean(), 2))', packages:['pandas'], data:['data/orders.csv'] }
+  ],
+
+  '6-2':[
+    { h:'多个条件：括号 + & | ~', p:'<code>&amp;</code> 是与、<code>|</code> 是或、<code>~</code> 是非。<b>每个条件都要单独加括号</b>，否则 <code>&amp;</code> 会抢在 <code>&gt;</code> 前面算，结果看起来正常、其实全错。', code:'import pandas as pd\ndf = pd.read_csv("data/orders.csv")\nmask = (df["channel"] == "App") & (df["amount"] > 500)\nprint(len(df[mask]))', packages:['pandas'], data:['data/orders.csv'] },
+    { h:'排序：sort_values', p:'<code>ascending=False</code> 是从大到小。<b>默认是升序</b>，忘了加这个参数就会拿到最小的几个。', code:'import pandas as pd\ndf = pd.read_csv("data/orders.csv")\ntop = df.sort_values("amount", ascending=False).head(3)\nprint(top[["order_id", "amount"]])', packages:['pandas'], data:['data/orders.csv'] },
+    { h:'取前几名：head 和 nlargest', p:'<code>head(3)</code> 是排完序取前三行；<code>nlargest(3, "amount")</code> 一步到位。两者结果一样，后者更短。', code:'import pandas as pd\ndf = pd.read_csv("data/orders.csv")\nprint(list(df.nlargest(3, "amount")["order_id"]))', packages:['pandas'], data:['data/orders.csv'] }
+  ],
+
+  '6-3':[
+    { h:'先诊断，再动手', p:'<code>isna().sum()</code> 逐列告诉你各有几个空值。别一上来就 <code>dropna()</code>——先看清楚哪一列缺得多，才知道该删还是该填。', code:'import pandas as pd\ndf = pd.read_csv("data/dirty_orders.csv")\nprint(df.isna().sum())\nprint("合计空值:", int(df.isna().sum().sum()))', packages:['pandas'], data:['data/dirty_orders.csv'] },
+    { h:'文字混进数值列：to_numeric', p:'一列里只要有一个 <code>"--"</code>，整列就变成 object 类型，算不了数。<code>errors="coerce"</code> 会把转不了的值变成 NaN，然后用 <code>dropna()</code> 收拾掉。', code:'import pandas as pd\ndf = pd.read_csv("data/dirty_orders.csv")\nprint(df["amount"].dtype)\ndf["amount"] = pd.to_numeric(df["amount"], errors="coerce")\nprint(df["amount"].dtype)\nprint("转完还剩", int(df["amount"].isna().sum()), "个空")', packages:['pandas'], data:['data/dirty_orders.csv'] },
+    { h:'去重：duplicated 和 drop_duplicates', p:'<code>duplicated().sum()</code> 数出有几行是重复的，<code>drop_duplicates()</code> 把重复的删掉（保留第一次出现的）。', code:'import pandas as pd\ndf = pd.read_csv("data/dirty_orders.csv")\nprint("重复行:", int(df.duplicated().sum()))\nclean = df.drop_duplicates()\nprint("删完:", len(df), "->", len(clean))', packages:['pandas'], data:['data/dirty_orders.csv'] }
+  ],
+
+  '6-4':[
+    { h:'groupby：分组再聚合', p:'<code>groupby("类目")</code> 把表按类目切成几堆，后面接的 <code>.sum()</code> / <code>.count()</code> 就是<b>每一堆各算一次</b>。这是 pandas 里最高频的操作，没有之一。', code:'import pandas as pd\ndf = pd.read_csv("data/orders.csv")\ndone = df[df["status"] == "已完成"]\nprint(done.groupby("category")["amount"].sum())', packages:['pandas'], data:['data/orders.csv'] },
+    { h:'一次算多个指标：agg', p:'<code>.agg(["count", "sum", "mean"])</code> 一次拿到三个指标，省得来回写三遍。', code:'import pandas as pd\ndf = pd.read_csv("data/orders.csv")\ndone = df[df["status"] == "已完成"]\nprint(done.groupby("category")["amount"].agg(["count", "sum"]))', packages:['pandas'], data:['data/orders.csv'] },
+    { h:'reset_index + rename：变回一张干净表', p:'分组后类目会变成<b>索引</b>而不是列。<code>reset_index()</code> 把它变回普通列，<code>rename()</code> 改列名——这一步不做，导出的表头会很难看。', code:'import pandas as pd\ndf = pd.read_csv("data/orders.csv")\ndone = df[df["status"] == "已完成"]\nt = done.groupby("category")["amount"].agg(["count", "sum"]).reset_index()\nt = t.rename(columns={"count": "orders", "sum": "revenue"})\nprint(t.sort_values("revenue", ascending=False))', packages:['pandas'], data:['data/orders.csv'] }
+  ],
+
+  '7-1':[
+    { h:'merge = SQL 的 JOIN', p:'两张表有一个共同的键（这里是 <code>product_id</code>），<code>merge</code> 就把它们按这个键对齐拼起来，一行订单自动带上对应商品的成本、名称。', code:'import pandas as pd\no = pd.read_csv("data/orders.csv")\np = pd.read_csv("data/products.csv")\nm = pd.merge(o, p, on="product_id", how="left")\nprint(m.shape)\nprint(m[["order_id", "product_name", "amount", "cost"]].head(3))', packages:['pandas'], data:['data/orders.csv','data/products.csv'] },
+    { h:'how 决定"配不上的怎么办"', p:'<code>how="inner"</code> 只保留两边都有的行；<code>how="left"</code> 保留左表全部，右表配不上的填 NaN。<b>实际分析里默认用 left</b>——宁可留个 NaN 让你看见，也别悄悄丢数据。', code:'import pandas as pd\no = pd.read_csv("data/orders.csv")\np = pd.read_csv("data/products.csv")\nprint("inner:", pd.merge(o, p, on="product_id", how="inner").shape)\nprint("left: ", pd.merge(o, p, on="product_id", how="left").shape)', packages:['pandas'], data:['data/orders.csv','data/products.csv'] },
+    { h:'同名列会变成 _x / _y', p:'订单表和商品表都有 <code>category</code>，合并后自动改名成 <code>category_x</code> 和 <code>category_y</code>。想控制后缀就传 <code>suffixes=("_单", "_品")</code>。', code:'import pandas as pd\no = pd.read_csv("data/orders.csv")\np = pd.read_csv("data/products.csv")\nm = pd.merge(o, p, on="product_id", how="left")\nprint([c for c in m.columns if "category" in c])', packages:['pandas'], data:['data/orders.csv','data/products.csv'] }
+  ],
+
+  '7-2':[
+    { h:'pivot_table：两个维度同时铺开', p:'<code>index</code> 是行、<code>columns</code> 是列、<code>values</code> 是格子里填什么、<code>aggfunc</code> 是怎么算。四个参数想清楚，一张交叉表就出来了。', code:'import pandas as pd\ndf = pd.read_csv("data/orders.csv")\ndone = df[df["status"] == "已完成"]\nt = pd.pivot_table(done, index="category", columns="channel", values="amount", aggfunc="sum")\nprint(t.round(0))', packages:['pandas'], data:['data/orders.csv'] },
+    { h:'fill_value 把空格子填成 0', p:'某些类目在某个渠道没有订单，透视表里就是 NaN。加 <code>fill_value=0</code> 让表格干净，也方便后面直接相加。', code:'import pandas as pd\ndf = pd.read_csv("data/orders.csv")\nt = pd.pivot_table(df, index="category", columns="channel", values="amount", aggfunc="count", fill_value=0)\nprint(t)', packages:['pandas'], data:['data/orders.csv'] },
+    { h:'透视表能直接求和验证', p:'<code>t.sum()</code> 按列求和（每个渠道总额），<code>t.sum(axis=1)</code> 按行求和（每个类目总额）。做完透视表顺手核一下总数，是防错的好习惯。', code:'import pandas as pd\ndf = pd.read_csv("data/orders.csv")\ndone = df[df["status"] == "已完成"]\nt = pd.pivot_table(done, index="category", columns="channel", values="amount", aggfunc="sum", fill_value=0)\nprint("按类目:", t.sum(axis=1).round(0).to_dict())\nprint("总计:", round(float(t.values.sum()), 2))', packages:['pandas'], data:['data/orders.csv'] }
+  ],
+
+  '7-3':[
+    { h:'字符串不是时间', p:'<code>"2024-03-05 10:30:00"</code> 在 pandas 眼里只是一串字符，排序按字母、不能取月份。<code>pd.to_datetime()</code> 之后才能用 <code>.dt</code> 那些功能。', code:'import pandas as pd\ndf = pd.read_csv("data/orders.csv")\nprint(df["order_time"].dtype)\ndf["order_time"] = pd.to_datetime(df["order_time"])\nprint(df["order_time"].dtype)', packages:['pandas'], data:['data/orders.csv'] },
+    { h:'.dt 访问器：取年、月、星期', p:'转成时间类型后，<code>.dt.year</code>、<code>.dt.month</code>、<code>.dt.dayofweek</code> 随取随用；<code>.dt.strftime("%Y-%m")</code> 直接格式化成字符串。', code:'import pandas as pd\ndf = pd.read_csv("data/orders.csv")\ndf["order_time"] = pd.to_datetime(df["order_time"])\nprint(df["order_time"].dt.strftime("%Y-%m").head(3).tolist())\nprint(df["order_time"].dt.dayofweek.head(3).tolist())', packages:['pandas'], data:['data/orders.csv'] },
+    { h:'按月汇总：先造月份列再 groupby', p:'最稳的写法是<b>先加一列月份字符串</b>，再按它 groupby。<code>reset_index()</code> 之后月份就变回普通列了，导出去也好看。', code:'import pandas as pd\ndf = pd.read_csv("data/orders.csv")\ndf["order_time"] = pd.to_datetime(df["order_time"])\ndone = df[df["status"] == "已完成"]\ndone = done.assign(month=done["order_time"].dt.strftime("%Y-%m"))\nprint(done.groupby("month")["amount"].sum().round(2))', packages:['pandas'], data:['data/orders.csv'] }
+  ],
+
+  '7-4':[
+    { h:'布尔值转 0/1，方便求和', p:'<code>(df["status"] == "已退款")</code> 得到一列 True/False，<code>.astype(int)</code> 变成 1/0，<code>.sum()</code> 就是退款单数——比写循环快得多。', code:'import pandas as pd\ndf = pd.read_csv("data/orders.csv")\ndf["is_refund"] = (df["status"] == "已退款").astype(int)\nprint("退款单数:", int(df["is_refund"].sum()))', packages:['pandas'], data:['data/orders.csv'] },
+    { h:'比率最怕分母搞错', p:'退货率是 <b>退款数 ÷ 全部订单数</b>。如果先把表筛成「已完成」，分母就少了退款单，算出来的比率会偏高。做比率前先问自己：分子分母是不是同一个口径。', code:'import pandas as pd\ndf = pd.read_csv("data/orders.csv")\nrefunds = int((df["status"] == "已退款").sum())\nprint("正确口径: %.2f%%" % (refunds / len(df) * 100))\ndone = df[df["status"] == "已完成"]\nprint("错误口径: %.2f%%" % (refunds / len(done) * 100))', packages:['pandas'], data:['data/orders.csv'] },
+    { h:'排序后记得重置索引', p:'<code>sort_values()</code> 之后索引还是乱的（比如 3, 0, 4, 1, 2）。<code>reset_index(drop=True)</code> 重排成 0~4，不然导出去第一列乱七八糟。', code:'import pandas as pd\ndf = pd.read_csv("data/orders.csv")\ndf["is_refund"] = (df["status"] == "已退款").astype(int)\ng = df.groupby("category").agg(orders=("order_id","count"), refunds=("is_refund","sum")).reset_index()\ng["rate"] = (g["refunds"] / g["orders"]).round(4)\nprint(g.sort_values("rate", ascending=False).reset_index(drop=True))', packages:['pandas'], data:['data/orders.csv'] }
+  ],
+
+  '8-1':[
+    { h:'fig 和 ax 是两样东西', p:'<code>plt.subplots()</code> 返回两个对象：<b>fig</b> 是整张画布（可以理解成一张纸），<b>ax</b> 是纸上的坐标系（坐标轴 + 数据）。一张纸上可以放好几个 ax，但大多数时候一个就够。', code:'import matplotlib\nmatplotlib.use("Agg")\nimport matplotlib.pyplot as plt\n\nfig, ax = plt.subplots(figsize=(5, 3))\nax.plot([1, 2, 3, 4], [5, 8, 6, 11])\nprint("画布类型:", type(fig).__name__)\nprint("坐标系类型:", type(ax).__name__)', packages:['matplotlib'] },
+    { h:'plot 的样式参数', p:'<code>marker</code> 是数据点的形状（o 圆点、s 方块、^ 三角），<code>linestyle</code> 是线的样式，<code>color</code> 支持 <code>"#3776ab"</code> 这种十六进制。参数一多就写成关键字，别按位置传。', code:'import matplotlib\nmatplotlib.use("Agg")\nimport matplotlib.pyplot as plt\n\nfig, ax = plt.subplots(figsize=(5, 3))\nax.plot([1, 2, 3, 4], [5, 8, 6, 11], marker="o", color="#3776ab", linewidth=2, linestyle="--")\nax.plot([1, 2, 3, 4], [4, 6, 7, 9], marker="s", color="#e3b341")', packages:['matplotlib'] },
+    { h:'没有标题的图等于半成品', p:'<code>set_title</code> 说清楚这张图讲什么，<code>set_xlabel</code> / <code>set_ylabel</code> 标出单位。读者不该靠猜。', code:'import matplotlib\nmatplotlib.use("Agg")\nimport matplotlib.pyplot as plt\n\nfig, ax = plt.subplots(figsize=(5, 3))\nax.plot([1, 2, 3, 4], [5, 8, 6, 11], marker="o")\nax.set_title("月度收入趋势")\nax.set_xlabel("月份")\nax.set_ylabel("收入（元）")', packages:['matplotlib'] }
+  ],
+
+  '8-2':[
+    { h:'ax.bar 画柱子', p:'第一个参数是类目（x 轴位置），第二个是高度。<code>ax.barh</code> 是横向的，类目名长的时候更好读。', code:'import matplotlib\nmatplotlib.use("Agg")\nimport matplotlib.pyplot as plt\n\nfig, ax = plt.subplots(figsize=(5, 3))\nax.bar(["数码", "服饰", "食品"], [217786, 273858, 102517])\nax.set_title("各类目收入")', packages:['matplotlib'] },
+    { h:'不排序的柱状图等于没画', p:'同样五个类目，左边按数据顺序、右边按收入降序。读者要看的是<b>谁高谁低</b>，你得替他把顺序排好。', code:'import matplotlib\nmatplotlib.use("Agg")\nimport matplotlib.pyplot as plt\n\ncats = ["数码", "服饰", "食品", "家居", "美妆"]\nvals = [217786, 273858, 102517, 182553, 90043]\n\nfig, (a1, a2) = plt.subplots(1, 2, figsize=(7, 2.8))\na1.bar(cats, vals)\na1.set_title("没排序")\n\norder = sorted(range(5), key=lambda i: -vals[i])\na2.bar([cats[i] for i in order], [vals[i] for i in order])\na2.set_title("按收入降序")', packages:['matplotlib'] },
+    { h:'加点修饰让图能看', p:'<code>grid(alpha=0.3)</code> 加浅网格方便读数；<code>ax.bar_label(bars)</code> 直接把数值标在柱子上，省得读者对着坐标轴估。', code:'import matplotlib\nmatplotlib.use("Agg")\nimport matplotlib.pyplot as plt\n\nfig, ax = plt.subplots(figsize=(5.5, 3))\nbars = ax.bar(["服饰", "数码", "家居", "食品", "美妆"],\n              [273858, 217786, 182553, 102517, 90043], color="#3776ab")\nax.bar_label(bars, fmt="%.0f", fontsize=8)\nax.grid(axis="y", alpha=0.3)\nax.set_ylabel("金额（元）")\nax.set_title("各类目收入（降序）")', packages:['matplotlib'] }
+  ],
+
+  '8-3':[
+    { h:'多条线靠 label + legend', p:'每条 <code>plot</code> 都写 <code>label="..."</code>，最后调一次 <code>ax.legend()</code>，图例就出来了。不写 label，legend 出来是空的——这是最常见的"图例不显示"原因。', code:'import matplotlib\nmatplotlib.use("Agg")\nimport matplotlib.pyplot as plt\n\nmonths = ["1月", "2月", "3月", "4月"]\nfig, ax = plt.subplots(figsize=(5.5, 3))\nax.plot(months, [10, 18, 25, 22], marker="o", label="已完成")\nax.plot(months, [1, 2, 3, 2], marker="s", label="已退款")\nax.set_title("完成 vs 退款金额对比")\nax.set_ylabel("金额（万元）")\nax.legend()', packages:['matplotlib'] },
+    { h:'中文默认是方块，这里已经修好了', p:'matplotlib 自带的字体没有中文字形，直接写中文标题会变成一排方块。这个游戏已经预装了中文字体并设成默认，你可以直接写中文。<b>自己电脑上跑要手动 addfont</b>，这是新手最常卡的一步。', code:'import matplotlib\nmatplotlib.use("Agg")\nimport matplotlib.pyplot as plt\n\nfig, ax = plt.subplots(figsize=(4.5, 2.4))\nax.plot([1, 2, 3], [2, 5, 3], marker="o")\nax.set_title("中文字体已经配好了")\nax.set_xlabel("横轴")', packages:['matplotlib'] },
+    { h:'savefig 存成文件', p:'<code>dpi</code> 决定清晰度（120 以上适合截图汇报），<code>bbox_inches="tight"</code> 把多余白边剪掉。浏览器里存到内存，本机跑就存成 .png。', code:'import matplotlib\nmatplotlib.use("Agg")\nimport matplotlib.pyplot as plt\nimport io\n\nfig, ax = plt.subplots(figsize=(5, 3))\nax.plot([1, 2, 3, 4], [5, 8, 6, 11], marker="o")\nax.set_title("月度收入")\n\nbuf = io.BytesIO()\nfig.savefig(buf, format="png", dpi=120, bbox_inches="tight")\nprint("PNG 字节数:", len(buf.getvalue()))', packages:['matplotlib'] }
+  ],
+
+  '9-1':[
+    { h:'你手上的数据', p:'<code>orders.csv</code> 共 <b>2400 笔订单</b>，字段：订单号、用户、商品、类目（数码/服饰/食品/家居/美妆）、渠道（App/小程序/PC/线下）、城市、下单时间、数量、单价、金额、状态（已完成 / 已退款 / 待发货）。<br>下面这段可以先跑一下，看看数据长什么样——这一关没有标准答案，但<u>先摸清楚数据</u>永远是第一步。', code:'import pandas as pd\ndf = pd.read_csv("data/orders.csv")\nprint(df.shape)\nprint(df["status"].value_counts())\nprint(df["category"].value_counts())', packages:['pandas'], data:['data/orders.csv'] },
+    { h:'运营总监要的四件事', p:'<b>1. 整体盘子</b>：GMV（已完成订单总额）、订单数、客单价、退款率。<br><b>2. 类目结构</b>：哪个类目在撑收入，哪个类目的客单价最高。<br><b>3. 月度走势</b>：1~6 月每月 GMV，是涨是跌。<br><b>4. 一张图</b>：把月度走势画出来，会上要用。<br><br>注意两个坑：<b>客单价的分母是已完成订单数</b>，不是全部订单；<b>退款率的分母是全部订单数</b>。分子分母口径不统一，报出来的数就是错的。' },
+    { h:'交付格式', p:'把结果装进一个字典，键名必须精确：<br><br><code>gmv</code> 数字 · <code>orders</code> 整数 · <code>aov</code> 数字（2 位小数）· <code>refund_rate</code> 数字（4 位小数）· <code>top_category</code> 字符串（GMV 最高的类目）· <code>best_aov_category</code> 字符串（客单价最高的类目）· <code>monthly</code> 长度 6 的列表<br><br>另外把图画出来赋给 <code>fig</code>。<b>top_category 和 best_aov_category 不是同一个</b>——GMV 第一的不一定是最赚钱的单笔，这两个要分开算。' }
+  ]
+};
+
+function renderTheory(lv){
+  const list = THEORY[lv.id];
+  if(!list || !list.length) return '';
+  let h = '<div class="theory" id="theory">';
+  h += '<div class="th-head"><span>📖 本关知识 <i>· 先读，再跑示例，最后动手</i></span>';
+  h += '<button class="btn ghost" id="thToggle">收起</button></div>';
+  list.forEach((t, i) => {
+    h += '<div class="tcard"><h5>' + t.h + '</h5><p>' + t.p + '</p>';
+    if(t.code){
+      h += '<div class="snippet"><pre>' + highlightPython(t.code) + '</pre>';
+      h += '<div class="sn-bar">';
+      h += '<button class="btn tiny" data-sn="' + i + '">▶ 运行看效果</button>';
+      h += '<button class="btn tiny alt" data-fill="' + i + '">↧ 抄进编辑器</button>';
+      h += '<span class="sn-out"></span>';
+      h += '</div>';
+      h += '<div class="sn-fig"></div>';
+      h += '</div>';
+    }
+    h += '</div>';
+  });
+  h += '<button class="btn gocode" id="goCode">读完了，去写代码 →</button>';
+  h += '</div>';
+  return h;
+}
+
+function bindTheory(lv){
+  const box = document.getElementById('theory');
+  if(!box) return;
+  const tg = document.getElementById('thToggle');
+  tg.addEventListener('click', () => {
+    box.classList.toggle('folded');
+    tg.textContent = box.classList.contains('folded') ? '展开' : '收起';
+  });
+
+  const go = document.getElementById('goCode');
+  if(go) go.addEventListener('click', () => {
+    const t = leftEl.querySelector('.tab[data-tab="code"]');
+    if(t) t.click();
+    leftEl.scrollTop = 0;
+  });
+
+  box.addEventListener('click', async e => {
+    const btn = e.target.closest('[data-sn],[data-fill]');
+    if(!btn) return;
+
+    if(btn.dataset.sn !== undefined){
+      const t = THEORY[lv.id][+btn.dataset.sn];
+      const out = btn.parentElement.querySelector('.sn-out');
+      if(!out) return;
+      out.textContent = '运行中…';
+      out.style.color = '';
+      try{
+        // 数据示例要先备好包和数据文件
+        if(t.packages && t.packages.length){
+          if(!pyodide) await bootEngine();
+          const missing = t.packages.filter(p => !loadedPkgs.has(p));
+          if(missing.length){
+            out.textContent = '首次加载 ' + missing.join('、') + '，稍等…';
+            await ensurePackages(t.packages);
+          }
+        }
+        if(t.data && t.data.length) await injectDataFiles(t.data);
+        const r = await runPython(t.code, t.packages ? 20 : 3);
+        if(r.err && r.err.trim()){
+          const last = r.err.trim().split('\n').filter(Boolean).pop();
+          out.innerHTML = '<span class="sn-err">✕ ' + escHtml(last) + '</span>';
+        }else{
+          const txt = r.out.replace(/\s+$/, '');
+          out.innerHTML = '<span class="sn-arrow">→ </span>' + escHtml(txt ? txt.split('\n').join('  ｜  ') : '(什么都没打印)');
+          // 画图示例：把图也显示出来
+          const figBox = btn.closest('.snippet').querySelector('.sn-fig');
+          const figSrc = figBox ? await renderAnyFigure() : null;
+          if(figBox && figSrc){
+            figBox.innerHTML = '<div class="figwrap"><img src="' + figSrc + '" alt="示例图"></div>';
+          }
+        }
+      }catch(err){
+        out.innerHTML = '<span class="sn-err">引擎还没就绪，等右上角变绿</span>';
+      }
+      return;
+    }
+
+    // 抄进编辑器
+    const t = THEORY[lv.id][+btn.dataset.fill];
+    const ta = document.getElementById('code');
+    ta.value = t.code;
+    persistCode(lv.id, t.code);
+    syncEditor();
+    ta.focus();
+    ta.scrollIntoView({ behavior:'smooth', block:'center' });
+    toast('已写入编辑器，改一改再运行');
+  });
+}
+
+function bindTabs(lv){
+  const tabs = Array.from(leftEl.querySelectorAll('.tab'));
+  if(!tabs.length) return;
+  tabs.forEach(tab => tab.addEventListener('click', () => {
+    tabs.forEach(x => x.classList.toggle('active', x === tab));
+    const learn = document.getElementById('pane-learn');
+    const code = document.getElementById('pane-code');
+    if(learn) learn.classList.toggle('hidden', tab.dataset.tab !== 'learn');
+    if(code) code.classList.toggle('hidden', tab.dataset.tab !== 'code');
+    if(tab.dataset.tab === 'code'){
+      requestAnimationFrame(() => {
+        syncEditor();
+        const ta = document.getElementById('code');
+        if(ta && tab.dataset.auto !== 'off') ta.focus();
+      });
+    }
+  }));
+}
+
+function toast(msg){
+  let el = document.querySelector('.toast');
+  if(!el){ el = document.createElement('div'); el.className = 'toast'; document.body.appendChild(el); }
+  el.textContent = msg;
+  el.classList.add('on');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('on'), 1900);
+}
+
+/* =========================================================
+   2. 状态
+   ========================================================= */
+const STORE_KEY = 'pyquest.v1';
+let state = { cleared: {}, current: LEVELS[0].id, hints: {} };
+
+function loadState(){
+  try{
+    const raw = localStorage.getItem(STORE_KEY);
+    if(raw){
+      const s = JSON.parse(raw);
+      if(s && s.cleared) state = Object.assign(state, s);
+    }
+  }catch(e){ /* 隐私模式可能禁写，忽略 */ }
+  if(!LEVELS.some(l => l.id === state.current)) state.current = LEVELS[0].id;
+}
+function saveState(){
+  try{ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }catch(e){}
+}
+
+/* =========================================================
+   3. Python 引擎（Pyodide）
+   ========================================================= */
+const CDN_LIST = [
+  'https://cdn.jsdelivr.net/pyodide/v0.26.4/full/',
+  'https://gcore.jsdelivr.net/pyodide/v0.26.4/full/',
+  'https://fastly.jsdelivr.net/pyodide/v0.26.4/full/'
+];
+
+let pyodide = null;
+let engineState = 'idle'; // idle | loading | ready | fail
+let engineBase = null;    // 运行时来源目录，wheel 预取要用
+let engineLabel = 'Python 3 · 本地';
+let loadTicker = null, loadStart = 0;
+
+function startLoadTicker(){
+  if(loadTicker) return;
+  loadStart = Date.now();
+  loadTicker = setInterval(() => {
+    if(engineState !== 'loading') return;
+    const s = (Date.now() - loadStart) / 1000;
+    const txt = document.getElementById('engineText');
+    if(!txt) return;
+    if(s < 3) txt.textContent = '正在唤醒 Python…';
+    else if(s < 10) txt.textContent = '加载运行时 ' + s.toFixed(0) + 's';
+    else if(s < 25) txt.textContent = '加载运行时 ' + s.toFixed(0) + 's（约 13MB）';
+    else txt.textContent = '网络较慢，已 ' + s.toFixed(0) + 's · 可先读理论';
+  }, 500);
+}
+function stopLoadTicker(){
+  clearInterval(loadTicker);
+  loadTicker = null;
+}
+
+const PREAMBLE = [
+  'import io, sys, time, traceback',
+  'class __CheckFailed(Exception):',
+  '    pass',
+  'def chk(cond, msg="结果不符合预期"):',
+  '    if not cond:',
+  '        raise __CheckFailed(msg)',
+  '__buf = io.StringIO()',
+  '__old = sys.stdout',
+  '__deadline = time.time() + __limit',
+  'def __guard(frame, event, arg):',
+  '    if time.time() > __deadline:',
+  '        raise TimeoutError("运行超过 " + str(int(__limit)) + " 秒仍未结束，检查是不是死循环")',
+  '    return __guard',
+  '__err = ""',
+  '__exited = False',
+  '__g = {"__name__": "__main__"}',
+  'try:',
+  '    sys.stdout = __buf',
+  '    sys.settrace(__guard)',
+  '    exec(compile(__src, "<你的代码>", "exec"), __g)',
+  'except TimeoutError as e:',
+  '    __err = "\\u23f1 " + str(e)',
+  'except SystemExit:',
+  '    __exited = True',
+  'except BaseException:',
+  '    __err = traceback.format_exc(limit=2)',
+  'finally:',
+  '    sys.settrace(None)',
+  '    sys.stdout = __old',
+  '__g["chk"] = chk',
+  '__res_out = __buf.getvalue()',
+  '__res_err = __err',
+  '__res_exited = __exited'
+].join('\n');
+
+// check 模式：用户代码跑完后，在同一个命名空间里跑断言
+const CHECK_PREAMBLE = [
+  'import traceback',
+  '__check_ok = False',
+  '__check_msg = ""',
+  '__cbuf = io.StringIO()',
+  '__cold = sys.stdout',
+  'try:',
+  '    sys.stdout = __cbuf',
+  '    exec(compile(__check_src, "<check>", "exec"), __g)',
+  '    __check_ok = True',
+  'except __CheckFailed as e:',
+  '    __check_msg = str(e)',
+  'except BaseException:',
+  '    __check_msg = traceback.format_exc(limit=2)',
+  'finally:',
+  '    sys.stdout = __cold',
+  '__check_out = __cbuf.getvalue()'
+].join('\n');
+
+function setEngine(s, text){
+  engineState = s;
+  const dot = document.getElementById('dot');
+  const txt = document.getElementById('engineText');
+  dot.className = 'dot ' + (s === 'ready' ? 'ready' : s === 'loading' ? 'loading' : s === 'fail' ? 'fail' : '');
+  txt.textContent = text;
+}
+
+function injectScript(src){
+  return new Promise((res, rej) => {
+    const sc = document.createElement('script');
+    sc.src = src;
+    sc.onload = res;
+    sc.onerror = () => rej(new Error('script load failed'));
+    document.head.appendChild(sc);
+  });
+}
+
+let bootPromise = null;
+
+function bootEngine(){
+  if(engineState === 'ready') return Promise.resolve(true);
+  if(bootPromise) return bootPromise;
+  bootPromise = doBoot().then(ok => { if(!ok) bootPromise = null; return ok; });
+  return bootPromise;
+}
+
+async function doBoot(){
+  setEngine('loading', '正在唤醒 Python…');
+  startLoadTicker();
+  const tBoot = Date.now();
+
+  // 本地运行时优先（同目录 pyodide/），拿不到再走 CDN
+  let localBase = null;
+  try{ localBase = new URL('pyodide/', location.href).href; }catch(e){}
+  const bases = [];
+  if(localBase) bases.push(localBase);
+  Array.prototype.push.apply(bases, CDN_LIST);
+
+  for(const base of bases){
+    try{
+      if(!window.loadPyodide) await injectScript(base + 'pyodide.js');
+      if(!window.loadPyodide) throw new Error('loadPyodide undefined');
+      pyodide = await window.loadPyodide({ indexURL: base });
+      // 预热一次，别把首次导入的耗时算进用户代码的超时
+      pyodide.runPython('import io, sys, time, traceback');
+      stopLoadTicker();
+      const local = (base === localBase);
+      engineBase = base;
+      engineLabel = local ? 'Python 3 · 本地' : 'Python 3 就绪';
+      setEngine('ready', engineLabel);
+      console.info('[pyquest] 引擎来源: ' + base);
+      if(!local && Date.now() - tBoot > 8000){
+        setTimeout(() => toast('引擎已就绪 · 双击「启动游戏.bat」可离线秒开'), 600);
+      }
+      return true;
+    }catch(err){
+      console.warn('[pyquest] 引擎源不可用: ' + base + ' — ' + (err && err.message));
+      window.loadPyodide = undefined;
+    }
+  }
+
+  stopLoadTicker();
+  pyodide = null;
+  setEngine('fail', '引擎未加载');
+  return false;
+}
+
+async function runPython(code, limit){
+  if(!pyodide){
+    await bootEngine();
+    if(!pyodide) throw new Error('OFFLINE');
+  }
+  pyodide.globals.set('__src', code);
+  pyodide.globals.set('__limit', Number(limit) || 3);
+  pyodide.runPython(PREAMBLE);
+  const out = pyodide.globals.get('__res_out');
+  const err = pyodide.globals.get('__res_err');
+  const exited = pyodide.globals.get('__res_exited');
+  try{ pyodide.globals.delete?.('__src'); }catch(e){}
+  return { out: String(out || ''), err: String(err || ''), exited: !!exited };
+}
+
+/* ---------- 项目关：把结果拼成一份可下载的报告 ---------- */
+
+async function collectReport(){
+  let obj = null;
+  try{
+    pyodide.runPython([
+      'import json',
+      '__rep_json = ""',
+      'try:',
+      '    __rep_json = json.dumps(__g.get("report"), ensure_ascii=False, default=str)',
+      'except Exception:',
+      '    __rep_json = ""'
+    ].join('\n'));
+    const s = String(pyodide.globals.get('__rep_json') || '');
+    if(s) obj = JSON.parse(s);
+  }catch(e){ /* 拿不到就算了，报告里显示占位 */ }
+  const fig = await renderFigure();
+  return { report: obj, fig: fig };
+}
+
+function fmtMoney(n){
+  const v = Number(n);
+  if(!isFinite(v)) return '—';
+  return '¥' + v.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function fmtPct(n){
+  const v = Number(n);
+  if(!isFinite(v)) return '—';
+  return (v * 100).toFixed(2) + '%';
+}
+
+function buildReportHtml(data, code){
+  const r = data.report || {};
+  const today = new Date().toLocaleDateString('zh-CN', { year:'numeric', month:'long', day:'numeric' });
+  const monthly = Array.isArray(r.monthly) ? r.monthly : [];
+  const maxMonth = monthly.length ? Math.max.apply(null, monthly.map(Number)) : 0;
+
+  const kpi = [
+    { k:'GMV', v: fmtMoney(r.gmv), d:'已完成订单总额' },
+    { k:'订单数', v: r.orders != null ? Number(r.orders).toLocaleString('zh-CN') : '—', d:'已完成的订单笔数' },
+    { k:'客单价', v: fmtMoney(r.aov), d:'GMV ÷ 订单数' },
+    { k:'退款率', v: fmtPct(r.refund_rate), d:'退款单 ÷ 全部订单' }
+  ].map(x => '<div class="kpi"><div class="k">' + x.k + '</div><div class="v">' + x.v + '</div><div class="d">' + x.d + '</div></div>').join('');
+
+  const monthRows = monthly.map((v, i) => {
+    const pct = maxMonth > 0 ? (Number(v) / maxMonth * 100) : 0;
+    return '<tr><td>2024-' + String(i + 1).padStart(2, '0') + '</td><td class="num">' + fmtMoney(v) + '</td>'
+      + '<td><div class="barwrap"><div class="bar" style="width:' + pct.toFixed(1) + '%"></div></div></td></tr>';
+  }).join('');
+
+  return '<!DOCTYPE html>\n<html lang="zh-CN">\n<head>\n<meta charset="utf-8">\n'
+    + '<meta name="viewport" content="width=device-width,initial-scale=1">\n'
+    + '<title>2024 上半年经营分析报告</title>\n<style>\n'
+    + '*{box-sizing:border-box;margin:0;padding:0}\n'
+    + 'body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;'
+    + 'background:#f4f6f8;color:#182531;line-height:1.75;padding:40px 20px;-webkit-font-smoothing:antialiased}\n'
+    + '.page{max-width:820px;margin:0 auto;background:#fff;padding:56px 60px 48px;'
+    + 'box-shadow:0 4px 30px rgba(20,40,60,.09);border-radius:4px}\n'
+    + 'h1{font-size:26px;font-weight:700;letter-spacing:.3px;padding-bottom:16px;border-bottom:2px solid #3776ab}\n'
+    + '.meta{font-size:12.5px;color:#7b8b9a;margin-top:10px}\n'
+    + 'h2{font-size:16px;font-weight:700;margin:38px 0 14px;padding-left:10px;border-left:3px solid #3776ab}\n'
+    + '.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:26px}\n'
+    + '.kpi{background:#f7f9fb;border:1px solid #e3e9ef;border-radius:8px;padding:14px 12px}\n'
+    + '.kpi .k{font-size:11.5px;color:#7b8b9a;letter-spacing:.5px}\n'
+    + '.kpi .v{font-size:19px;font-weight:700;margin:4px 0 2px;color:#1c3d5a;font-variant-numeric:tabular-nums}\n'
+    + '.kpi .d{font-size:10.5px;color:#a3b1be}\n'
+    + 'p{font-size:14px;color:#3c4c5c}\n'
+    + '.hl{color:#1c3d5a;font-weight:600;background:#fff8e1;padding:0 3px;border-radius:2px}\n'
+    + 'table{width:100%;border-collapse:collapse;margin-top:8px;font-size:13px}\n'
+    + 'th,td{text-align:left;padding:8px 10px;border-bottom:1px solid #edf1f5}\n'
+    + 'th{font-size:11.5px;color:#7b8b9a;font-weight:600;letter-spacing:.4px}\n'
+    + 'td.num{font-variant-numeric:tabular-nums;font-family:ui-monospace,Consolas,monospace;font-size:12.5px}\n'
+    + '.barwrap{background:#eef2f6;border-radius:99px;height:7px;overflow:hidden;min-width:120px}\n'
+    + '.bar{height:100%;background:linear-gradient(90deg,#4b9fe1,#3776ab);border-radius:99px}\n'
+    + '.chart{margin-top:14px;text-align:center}\n'
+    + '.chart img{max-width:100%;border:1px solid #e3e9ef;border-radius:6px}\n'
+    + 'details{margin-top:34px;font-size:13px}\n'
+    + 'summary{cursor:pointer;color:#3776ab;font-weight:600;font-size:13px}\n'
+    + 'pre{background:#f7f9fb;border:1px solid #e3e9ef;border-radius:6px;padding:14px;'
+    + 'overflow-x:auto;font-size:12px;line-height:1.65;margin-top:10px;'
+    + 'font-family:ui-monospace,Consolas,monospace;color:#2c3e50}\n'
+    + 'footer{margin-top:44px;padding-top:16px;border-top:1px solid #edf1f5;font-size:11.5px;color:#a3b1be}\n'
+    + '@media print{body{background:#fff;padding:0}.page{box-shadow:none;padding:20px 0}}\n'
+    + '@media (max-width:640px){.page{padding:32px 24px}.kpis{grid-template-columns:repeat(2,1fr)}}\n'
+    + '</style>\n</head>\n<body>\n<div class="page">\n'
+    + '<h1>2024 上半年经营分析报告</h1>\n'
+    + '<div class="meta">数据源：orders.csv（' + (r.orders != null ? Number(r.orders).toLocaleString('zh-CN') : '—') + ' 笔已完成订单） · 生成日期：' + today + '</div>\n'
+    + '<div class="kpis">' + kpi + '</div>\n'
+    + '<h2>一、整体经营</h2>\n'
+    + '<p>上半年已完成订单共 <span class="hl">' + (r.orders != null ? Number(r.orders).toLocaleString('zh-CN') : '—') + '</span> 笔，'
+    + '累计 GMV <span class="hl">' + fmtMoney(r.gmv) + '</span>，客单价 <span class="hl">' + fmtMoney(r.aov) + '</span>。'
+    + '整体退款率 <span class="hl">' + fmtPct(r.refund_rate) + '</span>。</p>\n'
+    + '<h2>二、类目结构</h2>\n'
+    + '<p>收入贡献最高的类目是 <span class="hl">' + (r.top_category || '—') + '</span>，'
+    + '客单价最高的类目是 <span class="hl">' + (r.best_aov_category || '—') + '</span>。'
+    + '两者不一致时值得进一步拆解：GMV 靠单量堆起来的类目，和靠单价撑起来的类目，运营动作完全不同。</p>\n'
+    + '<h2>三、月度走势</h2>\n'
+    + (monthRows ? '<table><thead><tr><th>月份</th><th>GMV</th><th>相对峰值</th></tr></thead><tbody>' + monthRows + '</tbody></table>' : '<p>（没有月度数据）</p>')
+    + (data.fig ? '<div class="chart"><img src="' + data.fig + '" alt="月度 GMV 走势"></div>' : '')
+    + '\n<h2>四、分析代码</h2>\n'
+    + '<details><summary>展开看这份报告是怎么算出来的</summary>\n<pre>' + escHtml(code.trim()) + '</pre>\n</details>\n'
+    + '<footer>由 蛇之塔 · PyQuest 生成 · 数据为合成示例，不含真实交易信息</footer>\n'
+    + '</div>\n</body>\n</html>';
+}
+
+function downloadReport(html){
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = '经营分析报告.html';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+}
+
+/* ---------- 数据关：包加载 / 数据注入 / 断言判题 ---------- */
+
+const loadedPkgs = new Set();
+const injectedFiles = new Set();
+
+// 各包实际大小（MB），用来算加载进度——按包数算不准，matplotlib 一个顶十个
+const PKG_SIZE = {
+  'matplotlib': 15.01, 'matplotlib-pyodide': 0.07, 'pillow': 2.90, 'fonttools': 4.07,
+  'kiwisolver': 0.13, 'pyparsing': 0.38, 'packaging': 0.19, 'cycler': 0.02,
+  'pandas': 22.66, 'numpy': 11.41, 'python-dateutil': 0.42, 'pytz': 1.03, 'six': 0.04
+};
+
+function pqError(type, msg, cause){
+  const e = new Error(msg);
+  e.pqType = type;
+  if(cause) e.cause = cause;
+  return e;
+}
+
+/* 加载进度：顶栏、顶部细线、结果面板共用一份状态 */
+
+let pkgLoading = null;          // { frac, msg }
+let pkgPromise = null;
+let lockPkgs = null;            // pyodide-lock.json 里的 packages，false = 取不到
+
+function fmtMB(n){ return (n || 0).toFixed(1); }
+
+function renderPkgProgress(){
+  if(!pkgLoading) return;
+  const pct = Math.round(pkgLoading.frac * 100);
+
+  const bar = document.getElementById('pkgBar');
+  if(bar) bar.style.width = pct + '%';
+  const txt = document.getElementById('pkgText');
+  if(txt) txt.textContent = pkgLoading.msg;
+
+  const gf = document.getElementById('gbarFill');
+  if(gf) gf.style.width = pct + '%';
+  const gb = document.getElementById('gbar');
+  if(gb) gb.classList.toggle('on', pct < 100);
+
+  const et = document.getElementById('engineText');
+  if(et && pkgLoading.frac < 1) et.textContent = '加载 ' + pct + '%';
+}
+
+function setPkgProgress(frac, msg){
+  pkgLoading = { frac: Math.max(0, Math.min(1, frac)), msg: msg || '' };
+  renderPkgProgress();
+}
+
+function clearPkgProgress(){
+  pkgLoading = null;
+  const gb = document.getElementById('gbar');
+  if(gb) gb.classList.remove('on');
+}
+
+/* 从 lock 里读包清单：文件名和体积都是准的，不用估 */
+async function getLock(){
+  if(lockPkgs !== null) return lockPkgs;
+  if(!engineBase || location.protocol === 'file:'){ lockPkgs = false; return lockPkgs; }
+  try{
+    const res = await fetch(engineBase + 'pyodide-lock.json', { cache: 'force-cache' });
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    const j = await res.json();
+    lockPkgs = (j && j.packages) ? j.packages : false;
+  }catch(err){
+    console.warn('[pyquest] 读不到 pyodide-lock.json，进度按包估算：', err && err.message);
+    lockPkgs = false;
+  }
+  return lockPkgs;
+}
+
+function resolveWheels(pkgs, names){
+  const out = [], seen = new Set(), stack = names.slice();
+  while(stack.length){
+    const n = stack.pop();
+    if(seen.has(n)) continue;
+    const p = pkgs[n];
+    if(!p || !p.file_name) continue;
+    seen.add(n);
+    out.push({ name: n, file: p.file_name, mb: (p.size || 0) / 1048576 });
+    (p.depends || []).forEach(d => stack.push(d));
+  }
+  return out;
+}
+
+/* Pyodide 只在整包装完时发一条消息，直接等它进度条会长时间停在 0。
+   这里自己按字节流拉一遍 wheel，边下边报进度；后面 loadPackage 直接走浏览器缓存。 */
+
+// lock 里不一定带 size（0.26.4 就没有），先用 PKG_SIZE 表，查不到再 HEAD 探一次
+async function wheelSizeMB(name, url){
+  if(PKG_SIZE[name] > 0) return PKG_SIZE[name];
+  try{
+    const res = await fetch(url, { method: 'HEAD', cache: 'force-cache' });
+    if(res.ok){
+      const len = parseInt(res.headers.get('content-length') || '0', 10);
+      if(len > 0) return len / 1048576;
+    }
+  }catch(e){ /* 探不到就按 0 处理，进度按剩余字节摊 */ }
+  return 0;
+}
+
+async function doLoadPkgs(need){
+  // 先把每个 wheel 的声明体积凑齐：lock 里没有 size 字段，靠 PKG_SIZE 表，查不到再 HEAD 探
+  let wheels = [];
+  try{
+    const pkgs = await getLock();
+    if(pkgs){
+      wheels = resolveWheels(pkgs, need);
+      for(const w of wheels){
+        if(!(w.mb > 0)) w.mb = await wheelSizeMB(w.name, engineBase + w.file);
+      }
+    }
+  }catch(e){
+    console.warn('[pyquest] 拿不到包清单，进度退回按包估算：', e && e.message);
+  }
+
+  const totalBytes = wheels.reduce((s, w) => s + w.mb * 1048576, 0);
+  const totalMB = totalBytes / 1048576;
+
+  setPkgProgress(0.01, '准备中…');
+
+  /* 为什么自己下：Pyodide 只在"整包装完"时才发一条消息，而且它驱动下载时会占住主线程，
+     进度条根本没法更新——等它下完就是一跳到 100%。
+     所以这里顺着依赖顺序自己拉，边拉边报字节；拉到的内容塞进内存，
+     装载时直接把这些字节还给它，不会多下一遍。 */
+  const byteCache = new Map();       // url -> Uint8Array
+  let doneBytes = 0, lastPaint = 0;
+
+  const paint = (w, cur, force) => {
+    const now = Date.now();
+    if(!force && now - lastPaint < 80) return;
+    lastPaint = now;
+    const got = doneBytes + cur;
+    const frac = totalBytes > 0 ? 0.02 + 0.90 * Math.min(1, got / totalBytes) : 0.06;
+    setPkgProgress(frac, '正在下载 ' + w.name + '（' + fmtMB(w.mb) + 'MB） · 总进度 '
+      + fmtMB(got / 1048576) + ' / ' + fmtMB(totalMB) + ' MB');
+  };
+
+  for(const w of wheels){
+    const url = engineBase + w.file;
+    const expect = w.mb * 1048576;
+    try{
+      const res = await fetch(url);
+      if(!res.ok) throw new Error('HTTP ' + res.status);
+      paint(w, 0, true);
+
+      let cur = 0;
+      if(res.body && typeof res.body.getReader === 'function'){
+        const reader = res.body.getReader();
+        const chunks = [];
+        for(;;){
+          const r = await reader.read();
+          if(r.done) break;
+          chunks.push(r.value);
+          cur += r.value.length;
+          paint(w, Math.min(cur, expect));
+        }
+        const buf = new Uint8Array(cur);
+        let off = 0;
+        for(const c of chunks){ buf.set(c, off); off += c.length; }
+        byteCache.set(url, buf);
+      }else{
+        const buf = new Uint8Array(await res.arrayBuffer());
+        cur = buf.length;
+        byteCache.set(url, buf);
+        paint(w, Math.min(cur, expect), true);
+      }
+      doneBytes += expect;
+    }catch(err){
+      // 某个包没拉到就算了，装载阶段它会自己再下（慢一点，但不会坏）
+      console.warn('[pyquest] 预取 ' + w.name + ' 失败：', err && err.message);
+      doneBytes += expect;
+    }
+  }
+
+  setPkgProgress(0.93, '正在装载环境…');
+
+  // 装载：命中内存的直接还字节，剩下的走正常网络
+  const origFetch = window.fetch;
+  window.fetch = function(input, init){
+    const url = (typeof input === 'string') ? input
+              : (input && typeof input.url === 'string') ? input.url
+              : String(input || '');
+    const hit = byteCache.get(url);
+    if(hit){
+      return Promise.resolve(new Response(hit, {
+        status: 200,
+        headers: { 'Content-Type': 'application/octet-stream', 'Content-Length': String(hit.length) }
+      }));
+    }
+    return origFetch.call(this, input, init);
+  };
+
+  // 兜底：万一预取整段没走通，按包估算也得让用户看到在动
+  const counted = new Set();
+  let doneEst = 0;
+  const totalEst = need.reduce((s, p) => s + (PKG_SIZE[p] || 0.5), 0);
+  const tickEst = () => {
+    if(wheels.length) return;
+    const frac = 0.02 + 0.88 * Math.min(1, doneEst / totalEst);
+    setPkgProgress(frac, '已下载 ' + fmtMB(doneEst) + ' / ' + fmtMB(totalEst) + ' MB');
+  };
+
+  try{
+    await pyodide.loadPackage(need, {
+      messageCallback: (msg) => {
+        const m = /^Loaded (.+)$/.exec(msg);
+        if(m){
+          m[1].split(',').forEach(name => {
+            const p = name.trim();
+            if(!counted.has(p)){ counted.add(p); doneEst += (PKG_SIZE[p] || 0.2); }
+          });
+        }
+        tickEst();
+      },
+      errorCallback: (msg) => { console.warn('[pyquest] pkg:', msg); }
+    });
+  }catch(err){
+    clearPkgProgress();
+    throw pqError('PACKAGE', need.join('、'), err);
+  }finally{
+    window.fetch = origFetch;
+  }
+
+  need.forEach(p => loadedPkgs.add(p));
+  setPkgProgress(1, '就绪');
+  setTimeout(() => {
+    clearPkgProgress();
+    const et = document.getElementById('engineText');
+    if(et && engineState === 'ready') et.textContent = engineLabel;
+  }, 700);
+}
+
+async function ensurePackages(list){
+  if(!list || !list.length) return;
+  // 已经有一批在装，等它装完再判断还缺什么
+  if(pkgPromise){ await pkgPromise.catch(() => {}); }
+  const need = list.filter(p => !loadedPkgs.has(p));
+  if(!need.length) return;
+
+  pkgPromise = doLoadPkgs(need);
+  try{
+    await pkgPromise;
+  }finally{
+    pkgPromise = null;
+  }
+}
+
+/* ---------- matplotlib：中文字体 + 出图 ---------- */
+
+let mplReady = false;
+
+async function setupMatplotlib(){
+  if(mplReady) return;
+  try{
+    pyodide.runPython([
+      'import matplotlib',
+      'matplotlib.use("Agg")',
+      // 顺手把 pyplot 也导了——用户代码里第一次 import 它要好几秒，提前吃掉
+      'import matplotlib.pyplot as _plt_warm',
+      'from matplotlib import font_manager as _fm',
+      '_fm.fontManager.addfont("/home/pyodide/data/NotoSansSC-Subset.otf")',
+      '_cn = [f.name for f in _fm.fontManager.ttflist if "Noto Sans CJK SC" in f.name]',
+      'matplotlib.rcParams["font.sans-serif"] = _cn + ["DejaVu Sans"]',
+      'matplotlib.rcParams["axes.unicode_minus"] = False'
+    ].join('\n'));
+    mplReady = true;
+  }catch(err){
+    console.warn('[pyquest] 中文字体没装上，图里中文可能变方块：', err && err.message);
+  }
+}
+
+/* 首次 import 大库要好几秒，预加载时先导一遍，用户点运行时就是秒开 */
+function warmUpPandas(){
+  if(loadedPkgs.has('pandas') && warmPandas) return;
+  try{
+    pyodide.runPython('import pandas as _pd_warm');
+    warmPandas = true;
+  }catch(e){ /* 失败就算了，用户代码里自己会导 */ }
+}
+let warmPandas = false;
+
+/* 后台预加载时把进度画到结果面板里：用户切到「动手」页就能看见，不用等点了运行才出现 */
+function verdictIdle(){
+  const v = document.getElementById('verdict');
+  return !!v && v.textContent === '未运行';
+}
+
+function showLoadCard(){
+  if(running) return;
+  if(!verdictIdle()) return;
+  const el = document.getElementById('term');
+  if(!el) return;
+  el.innerHTML = '<div class="ph">第一次进这一章要下载运行环境，之后就是秒开。'
+    + '<div class="loadbar"><i id="pkgBar" style="width:0%"></i></div>'
+    + '<div class="loadmsg" id="pkgText">准备中…</div></div>';
+  renderPkgProgress();
+}
+
+/* 预加载结束（或没成功）时，把结果面板还原成空闲状态，别把进度卡留在那儿 */
+function clearLoadCard(lv){
+  if(running) return;
+  if(state.current !== lv.id) return;
+  if(!verdictIdle()) return;
+  resetTerm(lv);
+}
+
+/* 进关卡就开始准备，把下载时间藏进"读理论卡"那几分钟里 */
+async function preloadLevel(lv){
+  if(!lv || !lv.packages || !lv.packages.length) return;
+  if(!pyodide){
+    bootEngine().then(() => { if(pyodide) preloadLevel(lv); }).catch(() => {});
+    return;
+  }
+
+  const missingPkgs = lv.packages.filter(p => !loadedPkgs.has(p));
+  const missingFiles = (lv.dataFiles || []).filter(f => !injectedFiles.has(f));
+  const needFont = lv.packages.indexOf('matplotlib') >= 0 && !mplReady;
+  if(!missingPkgs.length && !missingFiles.length && !needFont) return;
+
+  showLoadCard();
+
+  try{
+    await ensurePackages(lv.packages);
+    await injectDataFiles(lv.dataFiles || []);
+    if(lv.packages.indexOf('pandas') >= 0) warmUpPandas();
+    if(lv.packages.indexOf('matplotlib') >= 0) await setupMatplotlib();
+    setTimeout(() => clearLoadCard(lv), 800);
+  }catch(err){
+    // 预加载失败不打扰用户，点「运行」时会重试并给出明确错误
+    console.warn('[pyquest] 预加载没成功：', err && err.message);
+    clearLoadCard(lv);
+  }
+}
+
+async function renderFigure(){
+  try{
+    pyodide.runPython([
+      'import io as _io, base64 as _b64',
+      '__fig_b64 = ""',
+      'try:',
+      // 第 8 章约定 result 是 Figure，第 9 章约定叫 fig，两个都认
+      '    _r = __g.get("result")',
+      '    if _r is None or not hasattr(_r, "savefig"):',
+      '        _r = __g.get("fig")',
+      '    if _r is not None and hasattr(_r, "savefig"):',
+      '        _b = _io.BytesIO()',
+      '        _r.savefig(_b, format="png", dpi=110, bbox_inches="tight", facecolor="white")',
+      '        __fig_b64 = _b64.b64encode(_b.getvalue()).decode()',
+      'except Exception:',
+      '    __fig_b64 = ""'
+    ].join('\n'));
+    const b64 = String(pyodide.globals.get('__fig_b64') || '');
+    return b64 ? 'data:image/png;base64,' + b64 : null;
+  }catch(e){
+    return null;
+  }
+}
+
+// 理论示例用：按 result / fig / 当前 figure 的顺序找一张能画的图
+async function renderAnyFigure(){
+  if(!pyodide || !loadedPkgs.has('matplotlib')) return null;
+  try{
+    pyodide.runPython([
+      'import io as _io2, base64 as _b642',
+      '__any_b64 = ""',
+      'try:',
+      '    import matplotlib.pyplot as _plt',
+      '    _cands = []',
+      '    for _nm in ("result", "fig"):',
+      '        _o = __g.get(_nm)',
+      '        if _o is not None and hasattr(_o, "savefig"):',
+      '            _cands.append(_o)',
+      '    if not _cands:',
+      '        for _n in _plt.get_fignums():',
+      '            _cands.append(_plt.figure(_n))',
+      '    if _cands:',
+      '        _b = _io2.BytesIO()',
+      '        _cands[-1].savefig(_b, format="png", dpi=100, bbox_inches="tight", facecolor="white")',
+      '        __any_b64 = _b642.b64encode(_b.getvalue()).decode()',
+      'except Exception:',
+      '    __any_b64 = ""'
+    ].join('\n'));
+    const b64 = String(pyodide.globals.get('__any_b64') || '');
+    return b64 ? 'data:image/png;base64,' + b64 : null;
+  }catch(e){
+    return null;
+  }
+}
+
+const BINARY_RE = /\.(otf|ttf|woff2?|png|jpg|wasm)$/i;
+
+async function injectDataFiles(paths){
+  for(const p of (paths || [])){
+    if(injectedFiles.has(p)) continue;
+    let res;
+    try{
+      res = await fetch(p);
+    }catch(err){
+      throw pqError('DATA', p, err);
+    }
+    if(!res.ok) throw pqError('DATA', p + '（HTTP ' + res.status + '）');
+
+    const full = '/home/pyodide/' + p;
+    const dir = full.slice(0, full.lastIndexOf('/'));
+    try{ pyodide.FS.mkdirTree(dir); }catch(e){}
+
+    // 字体这类二进制文件不能按文本读，否则字节会被 UTF-8 解码搞坏
+    if(BINARY_RE.test(p)){
+      pyodide.FS.writeFile(full, new Uint8Array(await res.arrayBuffer()));
+    }else{
+      pyodide.FS.writeFile(full, await res.text());
+    }
+    injectedFiles.add(p);
+  }
+}
+
+async function runCheck(checkSrc){
+  if(!checkSrc) return { ok: true, msg: '', out: '' };
+  pyodide.globals.set('__check_src', checkSrc);
+  pyodide.runPython(CHECK_PREAMBLE);
+  return {
+    ok: !!pyodide.globals.get('__check_ok'),
+    msg: String(pyodide.globals.get('__check_msg') || ''),
+    out: String(pyodide.globals.get('__check_out') || '')
+  };
+}
+
+/* =========================================================
+   4. 高亮
+   ========================================================= */
+const escHtml = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+const HL_RE = /(#[^\n]*)|("""[\s\S]*?"""|'''[\s\S]*?'''|"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*')|\b(\d+\.?\d*)\b|\b(def|return|if|elif|else|for|while|in|not|and|or|import|from|as|class|try|except|finally|with|lambda|pass|break|continue|global|del|assert|yield|None|True|False)\b|\b(print|len|range|int|str|float|list|dict|set|tuple|sum|min|max|abs|round|sorted|reversed|enumerate|zip|type|input|join|append|split|format)\b/g;
+
+function highlightPython(src){
+  let out = '', last = 0, m;
+  HL_RE.lastIndex = 0;
+  while((m = HL_RE.exec(src)) !== null){
+    out += escHtml(src.slice(last, m.index));
+    const cls = m[1] ? 'c-com' : m[2] ? 'c-str' : m[3] ? 'c-num' : m[4] ? 'c-kw' : 'c-fn';
+    out += '<span class="' + cls + '">' + escHtml(m[0]) + '</span>';
+    last = m.index + m[0].length;
+  }
+  out += escHtml(src.slice(last));
+  return out + '\n';
+}
+
+/* =========================================================
+   5. 渲染：左导航 / 关卡
+   ========================================================= */
+const navEl = document.getElementById('nav');
+const leftEl = document.getElementById('left');
+const termEl = document.getElementById('term');
+const verdictEl = document.getElementById('verdict');
+
+function isUnlocked(idx){
+  if(idx === 0) return true;
+  return !!state.cleared[LEVELS[idx - 1].id];
+}
+function levelIndex(id){ return LEVELS.findIndex(l => l.id === id); }
+
+function renderNav(){
+  let html = '';
+  CHAPTERS.forEach(ch => {
+    const items = LEVELS.map((l, i) => ({ l, i })).filter(o => o.l.ch === ch.id);
+    const doneN = items.filter(o => state.cleared[o.l.id]).length;
+    html += '<div class="ch" data-ch="第' + ch.id + '章">';
+    html += '<div class="ch-h"><span>' + ch.id + ' · ' + ch.name + '</span><em>' + doneN + '/' + items.length + '</em></div>';
+    items.forEach(o => {
+      const unlocked = isUnlocked(o.i);
+      const done = !!state.cleared[o.l.id];
+      const active = state.current === o.l.id;
+      const cls = 'lv' + (done ? ' done' : '') + (unlocked ? '' : ' lock') + (active ? ' active' : '');
+      const num = o.l.id.split('-')[1];
+      const title = o.l.title;
+      html += '<button class="' + cls + '" data-id="' + o.l.id + '"'
+            + ' aria-label="' + o.l.id + ' ' + title + (done ? '，已通关' : '，未通过') + '"'
+            + (active ? ' aria-current="true"' : '')
+            + (unlocked ? '' : ' disabled aria-disabled="true"') + '>'
+            + '<span class="n" aria-hidden="true">' + (done ? '✓' : num) + '</span>'
+            + '<span class="t">' + title + '</span></button>';
+    });
+    html += '</div>';
+  });
+  navEl.innerHTML = html;
+  navEl.querySelectorAll('.lv').forEach(b => {
+    b.addEventListener('click', () => {
+      if(b.classList.contains('lock')) return;
+      state.current = b.dataset.id;
+      saveState(); renderNav(); renderLevel();
+    });
+  });
+  // 关卡多了以后一屏放不下，把当前关滚到看得见的位置
+  const activeBtn = navEl.querySelector('.lv.active');
+  if(activeBtn) activeBtn.scrollIntoView({ block: 'nearest' });
+}
+
+function renderProgress(){
+  const total = LEVELS.length;
+  const done = Object.keys(state.cleared).length;
+  document.getElementById('barFill').style.width = (done / total * 100) + '%';
+  document.getElementById('progText').innerHTML = '<b>' + done + '</b> / ' + total;
+  const sub = document.getElementById('subTitle');
+  if(sub) sub.textContent = 'Python 闯关 · ' + total + ' 关';
+}
+
+function renderLevel(){
+  const lv = LEVELS[levelIndex(state.current)];
+  const idx = levelIndex(state.current);
+  const done = !!state.cleared[lv.id];
+  const isBoss = !!lv.boss;
+  const ch = CHAPTERS.find(c => c.id === lv.ch);
+
+  let html = '';
+  html += '<div class="kick">';
+  html += '<span class="tag' + (isBoss ? ' boss' : '') + '">第 ' + lv.ch + ' 章 · ' + ch.name + '</span>';
+  html += '<span class="tag" style="background:rgba(255,255,255,.05);color:var(--ink3);border-color:var(--line2)">' + lv.id + '</span>';
+  if(done) html += '<span class="tag done">已通关</span>';
+  html += '</div>';
+  html += '<h2>' + lv.title + '</h2>';
+  html += '<p class="goal">' + lv.goal + '</p>';
+
+  html += '<div class="expect"><h4>本关任务</h4><div style="font-size:13px;color:var(--ink2);line-height:1.75">' + lv.brief + '</div></div>';
+
+  // 「理论 / 动手」双页签：先读概念和示例，再自己写
+  const theoryList = THEORY[lv.id] || [];
+  const startTab = done ? 'code' : 'learn';
+  html += '<div class="tabs">'
+        + '<button class="tab' + (startTab === 'learn' ? ' active' : '') + '" data-tab="learn">📖 理论 <span class="cnt">' + theoryList.length + '</span></button>'
+        + '<button class="tab' + (startTab === 'code' ? ' active' : '') + '" data-tab="code">⌨️ 动手</button>'
+        + '</div>';
+
+  // 页签一：理论
+  html += '<div class="tabpane' + (startTab === 'learn' ? '' : ' hidden') + '" id="pane-learn">' + renderTheory(lv) + '</div>';
+
+  // 页签二：实操
+  html += '<div class="tabpane' + (startTab === 'code' ? '' : ' hidden') + '" id="pane-code">';
+  if(lv.mode === 'check'){
+    // 字体是内部依赖，不必让学习者看到
+    const shown = (lv.dataFiles || []).filter(f => !/\.(otf|ttf|woff2?)$/i.test(f));
+    html += '<div class="expect"><h4>数据文件（已挂到工作目录）</h4><pre>'
+          + escHtml(shown.join('\n')) + '</pre></div>';
+  }else{
+    html += '<div class="expect"><h4>期望输出</h4><pre>' + escHtml(lv.expect.join('\n')) + '</pre></div>';
+  }
+  html += '<div id="hintSlot"></div>';
+
+  html += '<div class="toolbar">';
+  html += '<button class="btn run" id="runBtn">▶ 运行 <kbd>Ctrl</kbd><kbd>↵</kbd></button>';
+  html += '<button class="btn" id="hintBtn">💡 提示</button>';
+  html += '<button class="btn ghost" id="resetBtn">重置代码</button>';
+  html += '<span class="spacer"></span>';
+  if(done && idx < LEVELS.length - 1) html += '<button class="btn" id="nextBtn">下一关 →</button>';
+  html += '</div>';
+
+  html += '<div class="editor">'
+        + '<div class="gutter" id="gutter" aria-hidden="true"></div>'
+        + '<div class="code-area">'
+        + '<pre id="hl" aria-hidden="true"></pre>'
+        + '<textarea id="code" spellcheck="false" autocomplete="off" autocapitalize="off" wrap="off"'
+        + ' aria-label="Python 代码编辑器：按 Ctrl+Enter 运行"></textarea>'
+        + '</div></div>';
+  html += '</div>';
+
+  leftEl.innerHTML = html;
+
+  // 代码内容：优先用缓存的编辑内容
+  const codeKey = 'pyquest.code.' + lv.id;
+  let saved = null;
+  try{ saved = localStorage.getItem(codeKey); }catch(e){}
+  const ta = document.getElementById('code');
+  ta.value = (saved !== null && saved !== undefined) ? saved : lv.starter;
+
+  syncEditor();
+  bindEditor(lv);
+  bindTheory(lv);
+  bindTabs(lv);
+  renderHints(lv);
+  resetTerm(lv);
+
+  // 窄屏：把结果区收起来，空间全留给编辑器
+  const rp = document.querySelector('.right');
+  if(rp) rp.classList.toggle('collapsed', window.matchMedia('(max-width:1180px)').matches);
+
+  // 数据/画图关：进关卡就在后台把环境和数据备好
+  preloadLevel(lv);
+
+  document.getElementById('runBtn').addEventListener('click', () => runCurrent(lv));
+  document.getElementById('hintBtn').addEventListener('click', () => {
+    const n = (state.hints[lv.id] || 0);
+    state.hints[lv.id] = Math.min(n + 1, lv.hints.length);
+    saveState(); renderHints(lv);
+  });
+  document.getElementById('resetBtn').addEventListener('click', () => {
+    ta.value = lv.starter; persistCode(lv.id, lv.starter); syncEditor(); ta.focus();
+  });
+  const nb = document.getElementById('nextBtn');
+  if(nb) nb.addEventListener('click', () => {
+    const i = levelIndex(lv.id);
+    if(i < LEVELS.length - 1){ state.current = LEVELS[i + 1].id; saveState(); renderNav(); renderLevel(); }
+  });
+}
+
+function renderHints(lv){
+  const n = state.hints[lv.id] || 0;
+  const slot = document.getElementById('hintSlot');
+  if(!slot) return;
+  if(n === 0){ slot.innerHTML = ''; return; }
+  let html = '';
+  for(let i = 0; i < n; i++){
+    html += '<div class="hintbox"><b>提示 ' + (i + 1) + '</b>' + escHtml(lv.hints[i]) + '</div>';
+  }
+  slot.innerHTML = html;
+}
+
+/* ---------- 编辑器行为 ---------- */
+function syncEditor(){
+  const ta = document.getElementById('code');
+  const hl = document.getElementById('hl');
+  const gut = document.getElementById('gutter');
+  if(!ta) return;
+  hl.innerHTML = highlightPython(ta.value);
+  const lines = ta.value.split('\n').length;
+  let g = '';
+  for(let i = 1; i <= lines; i++) g += '<b>' + i + '</b>';
+  gut.innerHTML = g;
+  const off = ta.scrollTop;
+  hl.scrollTop = off; hl.scrollLeft = ta.scrollLeft;
+  gut.scrollTop = off;
+}
+
+function persistCode(id, val){
+  try{ localStorage.setItem('pyquest.code.' + id, val); }catch(e){}
+}
+
+function bindEditor(lv){
+  const ta = document.getElementById('code');
+  const hl = document.getElementById('hl');
+  const gut = document.getElementById('gutter');
+
+  ta.addEventListener('input', () => { syncEditor(); persistCode(lv.id, ta.value); });
+  ta.addEventListener('scroll', () => {
+    hl.scrollTop = ta.scrollTop; hl.scrollLeft = ta.scrollLeft; gut.scrollTop = ta.scrollTop;
+  });
+  ta.addEventListener('keydown', e => {
+    // Ctrl/Cmd + Enter 运行
+    if((e.ctrlKey || e.metaKey) && e.key === 'Enter'){
+      e.preventDefault(); runCurrent(lv); return;
+    }
+    if(e.key === 'Tab'){
+      e.preventDefault();
+      const s = ta.selectionStart, en = ta.selectionEnd;
+      if(e.shiftKey){
+        // 反缩进当前行
+        const lineStart = ta.value.lastIndexOf('\n', s - 1) + 1;
+        const head = ta.value.slice(lineStart, s);
+        if(head.startsWith('    ')){
+          ta.value = ta.value.slice(0, lineStart) + ta.value.slice(lineStart + 4);
+          ta.selectionStart = ta.selectionEnd = Math.max(lineStart, s - 4);
+        }
+      }else{
+        ta.value = ta.value.slice(0, s) + '    ' + ta.value.slice(en);
+        ta.selectionStart = ta.selectionEnd = s + 4;
+      }
+      syncEditor(); persistCode(lv.id, ta.value);
+      return;
+    }
+    if(e.key === 'Enter'){
+      e.preventDefault();
+      const s = ta.selectionStart;
+      const lineStart = ta.value.lastIndexOf('\n', s - 1) + 1;
+      const curLine = ta.value.slice(lineStart, s);
+      const indent = (curLine.match(/^[ \t]*/) || [''])[0];
+      const extra = /:\s*(#.*)?$/.test(curLine) ? '    ' : '';
+      const ins = '\n' + indent + extra;
+      ta.value = ta.value.slice(0, s) + ins + ta.value.slice(ta.selectionEnd);
+      ta.selectionStart = ta.selectionEnd = s + ins.length;
+      syncEditor(); persistCode(lv.id, ta.value);
+    }
+  });
+}
+
+/* =========================================================
+   6. 运行 + 判题
+   ========================================================= */
+function resetTerm(lv){
+  verdictEl.className = 'verdict';
+  verdictEl.textContent = '未运行';
+  const tip = (lv && lv.mode === 'check')
+    ? '这一关<b>判的是数据结构</b>，不是打印内容——把该算的结果放进 <code>result</code> 变量就行，print 不 print 都不影响。'
+    : '判题方式是<b>比对标准输出</b>——程序打印的内容一字不差才算过。';
+  termEl.innerHTML = '<div class="ph">点「运行」执行你的 Python 代码。<br>' + tip
+    + '<br><br>快捷键 <kbd>Ctrl</kbd>+<kbd>Enter</kbd> 运行。</div>';
+}
+
+function normalize(text){
+  const lines = String(text).replace(/\r/g, '').split('\n').map(l => l.replace(/[ \t]+$/g, ''));
+  while(lines.length && lines[lines.length - 1] === '') lines.pop();
+  while(lines.length && lines[0] === '') lines.shift();
+  return lines;
+}
+
+function firstDiff(got, exp){
+  const n = Math.max(got.length, exp.length);
+  for(let i = 0; i < n; i++){
+    if(got[i] !== exp[i]) return i;
+  }
+  return -1;
+}
+
+let running = false;
+
+// 把 Python 的报错翻译成人话。返回 null 表示没有匹配上的规则。
+const ERROR_HINTS = [
+  { re: /IndentationError|unexpected indent/, tip: '缩进不对。Python 靠缩进划分代码块——冒号下面那几行要统一缩进 4 个空格，不能有的多有的少。' },
+  { re: /SyntaxError: invalid syntax/, tip: '语法写错了。常见原因：if / for / def 后面漏了冒号、括号没配对、或者用了中文标点（，：（））。' },
+  { re: /SyntaxError: unmatched|unexpected EOF/, tip: '括号没配对，检查 ( ) 和 [ ] 是不是各有一半。' },
+  { re: /NameError: name '(\w+)' is not defined/, tip: '名字没定义过，或者拼错了。检查大小写和下划线，也确认这一行是不是写在了变量定义之前。' },
+  { re: /TypeError: can only concatenate str|must be str, not/, tip: '字符串和数字不能直接用 + 拼。用 str(数字) 转一下，或者用 f-string。' },
+  { re: /TypeError: unsupported operand/, tip: '两个值的类型对不上，比如字符串减数字。打印一下 type() 看看它到底是什么类型。' },
+  { re: /TypeError: '(\w+)' object is not callable/, tip: '这个不是函数，调用不了。检查是不是把变量名和函数名搞混了。' },
+  { re: /KeyError/, tip: '字典里没有这个键。先用 in 判断一下，或者改用 .get(键, 默认值)。' },
+  { re: /IndexError/, tip: '下标越界。索引从 0 开始，长度 5 的列表最大下标是 4，最后一个也可以写 -1。' },
+  { re: /AttributeError: '(\w+)' object has no attribute/, tip: '这个对象没有这个属性/方法。检查拼写；如果它是列表，注意 append 是方法、len 是函数。' },
+  { re: /ModuleNotFoundError|ImportError/, tip: '这个模块没装上，或者名字写错了。' },
+  { re: /ZeroDivisionError/, tip: '除数是 0。除法之前先判断一下分母。' },
+  { re: /RecursionError/, tip: '递归太深，多半是出口条件没写或者写错了——递归必须有能让它停下来的分支。' },
+  { re: /ValueError: invalid literal for int/, tip: '这个字符串不能直接转成整数，比如 int("abc")。先确认里面是不是纯数字。' },
+  { re: /ValueError/, tip: '值不合法。常见于类型转换——要转的内容格式不对。' }
+];
+
+function explainError(err){
+  for(const h of ERROR_HINTS){
+    if(h.re.test(err)) return h.tip;
+  }
+  return null;
+}
+
+async function runCurrent(lv){
+  if(running) return;
+  const ta = document.getElementById('code');
+  const btn = document.getElementById('runBtn');
+  const code = ta.value;
+  if(!code.trim()){
+    verdictEl.className = 'verdict bad'; verdictEl.textContent = '空代码';
+    termEl.innerHTML = '<div class="ph">编辑器还是空的，先写点代码。点「提示」可以看第一句该写什么。</div>';
+    return;
+  }
+  running = true;
+  btn.disabled = true;
+  btn.innerHTML = '⏳ 运行中…';
+
+  // 窄屏：一运行就把结果区拉出来，不用手动点
+  if(window.matchMedia('(max-width:1180px)').matches){
+    const rp = document.querySelector('.right');
+    if(rp) rp.classList.remove('collapsed');
+  }
+
+  verdictEl.className = 'verdict'; verdictEl.textContent = '运行中';
+  if(!pyodide){
+    termEl.innerHTML = '<div class="ph">首次运行需要先加载 Python 运行时（约 13MB），正在抓紧下载…<br>加载完成后会自动执行你这段代码，不用再点一次。</div>';
+  }else{
+    termEl.innerHTML = '<div class="ph">正在执行…</div>';
+  }
+
+  persistCode(lv.id, code);
+
+  let result = null, fatal = null;
+  const isCheck = lv.mode === 'check';
+
+  try{
+    // 数据关先把引擎、包、数据文件准备好
+    if(!pyodide){
+      verdictEl.textContent = '加载中';
+      await bootEngine();
+      if(!pyodide) throw new Error('OFFLINE');
+    }
+
+    if(isCheck){
+      const missing = (lv.packages || []).filter(p => !loadedPkgs.has(p));
+      if(pkgPromise || missing.length){
+        verdictEl.textContent = '加载环境';
+        termEl.innerHTML = '<div class="ph">第一次进这一章要下载运行环境，之后就是秒开。'
+          + '<div class="loadbar"><i id="pkgBar" style="width:0%"></i></div>'
+          + '<div class="loadmsg" id="pkgText">准备中…</div></div>';
+        await new Promise(r => requestAnimationFrame(() => setTimeout(r, 20)));
+        renderPkgProgress();
+      }
+      await ensurePackages(lv.packages || []);
+      await injectDataFiles(lv.dataFiles || []);
+      if((lv.packages || []).indexOf('pandas') >= 0) warmUpPandas();
+      if((lv.packages || []).indexOf('matplotlib') >= 0) await setupMatplotlib();
+    }
+
+    // 先让浏览器把状态画出来，再阻塞主线程执行 Python
+    await new Promise(r => requestAnimationFrame(() => setTimeout(r, 20)));
+    result = await runPython(code, isCheck ? 20 : 3);
+  }catch(err){
+    fatal = err;
+  }
+
+  running = false;
+  btn.disabled = false;
+  btn.innerHTML = '▶ 运行 <kbd>Ctrl</kbd><kbd>↵</kbd>';
+
+  if(fatal){
+    const ftype = fatal.pqType || 'ENGINE';
+    verdictEl.className = 'verdict bad';
+
+    if(ftype === 'DATA'){
+      verdictEl.textContent = '缺数据';
+      termEl.innerHTML = '<div class="rescard bad"><div class="ttl">⚠ 数据文件读不到</div>'
+        + '<div style="font-size:12.5px;color:#ffb3ae;line-height:1.8;font-family:var(--sans)">'
+        + '这一关要用 <code>' + escHtml(fatal.message) + '</code>，但请求失败了。<br>'
+        + '两种可能：文件被删了或改名了；或者你是直接双击 index.html 打开的——那样读不到同目录的 data/。<br>'
+        + '用 <b>启动游戏.bat</b> 打开就没这个问题。'
+        + '</div></div>';
+      return;
+    }
+
+    if(ftype === 'PACKAGE'){
+      verdictEl.textContent = '缺依赖';
+      termEl.innerHTML = '<div class="rescard bad"><div class="ttl">⚠ 数据分析环境没装上</div>'
+        + '<div style="font-size:12.5px;color:#ffb3ae;line-height:1.8;font-family:var(--sans)">'
+        + '没能加载 <code>' + escHtml(fatal.message) + '</code>。它会先找同目录 <code>pyodide/</code> 里的 .whl 文件，找不到再去 CDN 下载。'
+        + '两条路都失败了。<br>'
+        + '检查一下 pyodide/ 目录里有没有 pandas 和 numpy 的 .whl，或者换个网络再试。'
+        + '</div></div>';
+      return;
+    }
+
+    verdictEl.textContent = '离线';
+    termEl.innerHTML = '<div class="rescard bad"><div class="ttl">⚠ Python 引擎没能加载</div>'
+      + '<div style="font-size:12.5px;color:#ffb3ae;line-height:1.75;font-family:var(--sans)">'
+      + '这个游戏靠浏览器里的 Python 运行时（Pyodide）真正执行代码，需要约 13MB 的运行时文件。<br>'
+      + '它优先读同目录 <code>pyodide/</code> 里的本地副本，读不到才去 CDN 下载——现在两条路都没走通。<br>'
+      + '换个网络环境再试，或者把下面的地址在浏览器里打开一次预热缓存：<br>'
+      + '<code style="display:block;margin-top:6px;color:#ffd43b;word-break:break-all">https://cdn.jsdelivr.net/pyodide/v0.26.4/full/</code>'
+      + '</div></div>';
+    return;
+  }
+
+  if(result.err && result.err.trim()){
+    verdictEl.className = 'verdict bad';
+    verdictEl.textContent = '报错';
+    const tip = explainError(result.err);
+    termEl.innerHTML = '<div class="rescard bad"><div class="ttl">✕ 代码报错了</div>'
+      + (tip ? '<div class="hintbox" style="margin:0 0 10px"><b>可能是这个原因</b>' + escHtml(tip) + '</div>' : '')
+      + '<pre class="err" style="margin:0;font-family:var(--mono);font-size:12px;line-height:1.7;white-space:pre-wrap;word-break:break-word">'
+      + escHtml(result.err.trim()) + '</pre></div>'
+      + (result.out.trim() ? '<div class="rescard"><div class="ttl">运行期间已输出的内容</div><div class="cmp"><div class="row mute">' + escHtml(result.out.replace(/\s+$/,'')) + '</div></div></div>' : '');
+    return;
+  }
+
+  // 数据关：不比对输出，跑隐藏断言
+  if(isCheck){
+    termEl.innerHTML = '<div class="ph">正在校验结果…</div>';
+    const c = await runCheck(lv.check);
+    const userOut = result.out.replace(/\s+$/, '');
+    const trail = userOut
+      ? '<div class="cmp" style="margin-top:9px"><div class="lbl">你的输出</div><div class="row mute">' + escHtml(userOut) + '</div></div>'
+      : '';
+
+    if(c.ok){
+      verdictEl.className = 'verdict ok';
+      verdictEl.textContent = '通过';
+      let figHtml = '';
+      let reportBtn = '';
+      let okText = '所有断言都过了，图的结构是对的。';
+
+      if(lv.report){
+        const data = await collectReport();
+        const html = buildReportHtml(data, code);
+        window.__pqReport = html;
+        okText = '全部指标都对上了，报告已经生成。';
+        figHtml = data.fig
+          ? '<div class="figwrap"><img src="' + data.fig + '" alt="月度走势"></div>'
+          : '';
+        reportBtn = '<button class="btn run" id="dlReport" style="margin-top:11px;width:100%;justify-content:center">⬇ 下载分析报告（HTML）</button>';
+      }else if(lv.showFigure){
+        const src = await renderFigure();
+        figHtml = src
+          ? '<div class="figwrap"><img src="' + src + '" alt="你画的图"></div>'
+          : '<div class="hintbox">判题过了，但没能把图渲染出来——确认把 <code>fig</code> 赋给了 <code>result</code>。</div>';
+      }
+
+      termEl.innerHTML = '<div class="rescard ok"><div class="ttl">✓ 通过！</div>'
+        + '<div style="font-size:12.5px;color:#a9e5b8;font-family:var(--sans);line-height:1.7">' + okText + '</div>'
+        + figHtml + reportBtn + trail + '</div>';
+
+      const dl = document.getElementById('dlReport');
+      if(dl) dl.addEventListener('click', () => downloadReport(window.__pqReport));
+
+      state.cleared[lv.id] = true;
+      saveState();
+      renderNav(); renderProgress();
+      showWin(lv);
+    }else{
+      verdictEl.className = 'verdict bad';
+      verdictEl.textContent = '未通过';
+      const isTrace = c.msg.indexOf('Traceback') >= 0;
+      let html = '<div class="rescard bad"><div class="ttl">✕ 结果不对</div>';
+      if(isTrace){
+        html += '<pre style="margin:0;font-family:var(--mono);font-size:12px;line-height:1.7;white-space:pre-wrap;word-break:break-word;color:#ffb3ae">'
+              + escHtml(c.msg.trim()) + '</pre>';
+      }else{
+        html += '<div style="font-size:13px;color:#ffb3ae;line-height:1.8;font-family:var(--sans)">'
+              + escHtml(c.msg) + '</div>';
+      }
+      html += trail + '</div>';
+      termEl.innerHTML = html;
+    }
+    return;
+  }
+
+  const got = normalize(result.out);
+  const exp = lv.expect.slice();
+  const d = firstDiff(got, exp);
+
+  if(d === -1){
+    verdictEl.className = 'verdict ok';
+    verdictEl.textContent = '通过';
+    termEl.innerHTML = '<div class="rescard ok"><div class="ttl">✓ 通过！</div>'
+      + '<div class="cmp"><div class="lbl">你的输出</div><div class="row exp">' + (escHtml(got.join('\n')) || '(无输出)') + '</div></div></div>';
+    state.cleared[lv.id] = true;
+    saveState();
+    renderNav(); renderProgress();
+    showWin(lv);
+  }else{
+    verdictEl.className = 'verdict bad';
+    verdictEl.textContent = '未通过';
+    let html = '<div class="rescard bad"><div class="ttl">✕ 输出不匹配</div>';
+    html += '<span class="diff">第 ' + (d + 1) + ' 行开始不一样</span>';
+    html += '<div class="cmp">';
+    html += '<div><div class="lbl">你的输出' + (got.length ? '' : '（空）') + '</div>';
+    if(got.length){
+      got.forEach((line, i) => {
+        html += '<div class="row ' + (line === exp[i] ? 'mute' : 'got') + '">' + (i === d ? '▸ ' : '  ') + escHtml(line) + '</div>';
+      });
+    }else{
+      html += '<div class="row got">（程序什么都没打印）</div>';
+    }
+    html += '</div>';
+    html += '<div><div class="lbl">期望输出</div>';
+    exp.forEach((line, i) => {
+      html += '<div class="row ' + (line === got[i] ? 'mute' : 'exp') + '">' + (i === d ? '▸ ' : '  ') + escHtml(line) + '</div>';
+    });
+    html += '</div></div></div>';
+    if(got.length === exp.length + 1 && got[got.length - 1] === ''){
+      html += '<div class="hintbox">尾部的空行不参与比对，可以忽略。</div>';
+    }
+    if(result.exited){
+      html += '<div class="hintbox"><b>注意</b>你的代码调用了 exit() / sys.exit()，程序在那一行就结束了，后面的代码没机会执行。</div>';
+    }
+    termEl.innerHTML = html;
+  }
+}
+
+/* ---------- 通关弹层 ---------- */
+function showWin(lv){
+  const idx = levelIndex(lv.id);
+  const isLast = idx === LEVELS.length - 1;
+  const nextId = isLast ? null : LEVELS[idx + 1].id;
+  const nextLv = isLast ? null : LEVELS[idx + 1];
+
+  const wrap = document.createElement('div');
+  wrap.className = 'win';
+  wrap.innerHTML = '<div class="card">'
+    + '<div class="star">' + (isLast ? '👑' : '⭐') + '</div>'
+    + '<h3>' + (isLast ? '全部通关了' : '关卡通过') + '</h3>'
+    + '<p>' + (isLast
+        ? LEVELS.length + ' 关全过。从 <b>print</b> 到 <b>merge</b> 到 <b>出报告</b>，这一圈走完了。'
+        : '「<b>' + lv.title + '</b>」已完成' + (nextLv ? '<br>下一关：' + nextLv.title : '')) + '</p>'
+    + '<div class="acts">'
+    +   '<button class="btn ghost" data-act="stay">留在本关</button>'
+    +   (lv.report ? '<button class="btn" data-act="dl">下载报告</button>' : '')
+    +   (nextId ? '<button class="btn run" data-act="next">继续 →</button>' : '<button class="btn run" data-act="close">好</button>')
+    + '</div></div>';
+  document.body.appendChild(wrap);
+
+  const close = () => wrap.remove();
+  wrap.addEventListener('click', e => {
+    if(e.target === wrap) close();
+    const act = e.target.closest('[data-act]');
+    if(!act) return;
+    const a = act.dataset.act;
+    if(a === 'stay' || a === 'close'){ close(); return; }
+    if(a === 'dl'){
+      if(window.__pqReport) downloadReport(window.__pqReport);
+      return;
+    }
+    if(a === 'next'){
+      close();
+      state.current = nextId; saveState(); renderNav(); renderLevel();
+    }
+  });
+  document.addEventListener('keydown', function esc(e){
+    if(e.key === 'Escape'){ close(); document.removeEventListener('keydown', esc); }
+  });
+}
+
+/* =========================================================
+   7. 启动
+   ========================================================= */
+loadState();
+renderNav();
+renderProgress();
+renderLevel();
+bootEngine();
+
+// 窄屏：点结果区标题栏可以收起 / 展开
+const rheadEl = document.querySelector('.rhead');
+if(rheadEl){
+  rheadEl.addEventListener('click', () => {
+    if(!window.matchMedia('(max-width:1180px)').matches) return;
+    const rp = document.querySelector('.right');
+    if(rp) rp.classList.toggle('collapsed');
+  });
+}
+
+/* ---------- 进度导出 / 导入 / 清空 ---------- */
+
+function collectCodes(){
+  const out = {};
+  for(let i = 0; i < localStorage.length; i++){
+    const k = localStorage.key(i);
+    if(k && k.indexOf('pyquest.code.') === 0) out[k] = localStorage.getItem(k);
+  }
+  return out;
+}
+
+function exportProgress(){
+  const payload = {
+    app: 'pyquest',
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    totalLevels: LEVELS.length,
+    state: state,
+    codes: collectCodes()
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'pyquest-progress.json';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1200);
+  toast('进度已导出到下载文件夹');
+}
+
+function importProgress(file){
+  const r = new FileReader();
+  r.onload = () => {
+    try{
+      const d = JSON.parse(String(r.result));
+      if(!d || !d.state || !d.state.cleared) throw new Error('bad format');
+      state = {
+        cleared: d.state.cleared || {},
+        current: d.state.current || LEVELS[0].id,
+        hints: d.state.hints || {}
+      };
+      if(!LEVELS.some(l => l.id === state.current)) state.current = LEVELS[0].id;
+      Object.keys(d.codes || {}).forEach(k => {
+        if(k.indexOf('pyquest.code.') === 0) localStorage.setItem(k, d.codes[k]);
+      });
+      saveState();
+      renderNav(); renderProgress(); renderLevel();
+      toast('进度已导入');
+    }catch(e){
+      toast('导入失败：这个文件不是 PyQuest 的进度');
+    }
+  };
+  r.readAsText(file);
+}
+
+function clearProgress(){
+  if(!window.confirm('清空所有通关记录和你写过的代码？这个操作不能撤销。')) return;
+  const keys = [];
+  for(let i = 0; i < localStorage.length; i++){
+    const k = localStorage.key(i);
+    if(k && k.indexOf('pyquest.') === 0) keys.push(k);
+  }
+  keys.forEach(k => { try{ localStorage.removeItem(k); }catch(e){} });
+  state = { cleared: {}, current: LEVELS[0].id, hints: {} };
+  renderNav(); renderProgress(); renderLevel();
+  toast('已清空，从第一关重新开始');
+}
+
+function bindMenu(){
+  const btn = document.getElementById('menuBtn');
+  if(!btn) return;
+  const wrap = btn.parentElement;
+
+  const fileInput = document.createElement('input');
+  fileInput.type = 'file';
+  fileInput.accept = '.json,application/json';
+  fileInput.style.display = 'none';
+  fileInput.addEventListener('change', () => {
+    if(fileInput.files && fileInput.files[0]) importProgress(fileInput.files[0]);
+    fileInput.value = '';
+  });
+  wrap.appendChild(fileInput);
+
+  btn.addEventListener('click', () => {
+    const old = wrap.querySelector('.menu-pop');
+    if(old){ old.remove(); btn.setAttribute('aria-expanded', 'false'); return; }
+
+    const pop = document.createElement('div');
+    pop.className = 'menu-pop';
+    pop.setAttribute('role', 'menu');
+    pop.innerHTML = '<button role="menuitem" data-m="export">导出进度</button>'
+      + '<button role="menuitem" data-m="import">导入进度</button>'
+      + '<div class="sep"></div>'
+      + '<button role="menuitem" class="danger" data-m="clear">清空进度</button>';
+    wrap.appendChild(pop);
+    btn.setAttribute('aria-expanded', 'true');
+
+    pop.addEventListener('click', e => {
+      const b = e.target.closest('[data-m]');
+      if(!b) return;
+      pop.remove();
+      btn.setAttribute('aria-expanded', 'false');
+      if(b.dataset.m === 'export') exportProgress();
+      else if(b.dataset.m === 'import') fileInput.click();
+      else if(b.dataset.m === 'clear') clearProgress();
+    });
+
+    const closeOnOutside = ev => {
+      if(!wrap.contains(ev.target)){
+        pop.remove();
+        btn.setAttribute('aria-expanded', 'false');
+        document.removeEventListener('click', closeOnOutside);
+      }
+    };
+    setTimeout(() => document.addEventListener('click', closeOnOutside), 0);
+  });
+}
+
+bindMenu();
+
+// 拖窗口 / 手机横竖屏切换时，同步结果区的收放状态
+let resizeTimer = null;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => {
+    const rp = document.querySelector('.right');
+    if(!rp) return;
+    rp.classList.toggle('collapsed', window.matchMedia('(max-width:1180px)').matches);
+  }, 180);
+});
+
+// 首次进入给个热身提示
+window.addEventListener('error', e => console.warn('[pyquest]', e.message));
+</script>
+</body>
+</html>

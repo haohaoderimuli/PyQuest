@@ -1,0 +1,14 @@
+{
+  "name": "pyquest",
+  "version": "1.0.0",
+  "private": true,
+  "description": "蛇之塔 · PyQuest —— Python 闯关游戏（单页 + 本地 Pyodide 运行时）",
+  "scripts": {
+    "serve": "python serve.py",
+    "test": "node tests/run_levels.mjs",
+    "test:e2e": "node tests/e2e.mjs"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.48.0"
+  }
+}
