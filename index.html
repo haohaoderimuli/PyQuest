@@ -1477,7 +1477,7 @@ const CDN_LIST = [
 let pyodide = null;
 let engineState = 'idle'; // idle | loading | ready | fail
 let engineBase = null;    // 运行时来源目录，wheel 预取要用
-let engineLabel = 'Python 3 · 本地';
+let engineLabel = 'Python 3 · 内置';
 let loadTicker = null, loadStart = 0;
 
 function startLoadTicker(){
@@ -1604,7 +1604,7 @@ async function doBoot(){
       stopLoadTicker();
       const local = (base === localBase);
       engineBase = base;
-      engineLabel = local ? 'Python 3 · 本地' : 'Python 3 就绪';
+      engineLabel = local ? 'Python 3 · 内置' : 'Python 3 就绪';
       setEngine('ready', engineLabel);
       console.info('[pyquest] 引擎来源: ' + base);
       if(!local && Date.now() - tBoot > 8000){
@@ -1839,6 +1839,67 @@ function resolveWheels(pkgs, names){
   return out;
 }
 
+/* ---------- wheel 本地缓存（IndexedDB） ----------
+   GitHub Pages 只给 10 分钟缓存，隔天再来那 58MB 得重新下。
+   自己存一份：第一次还是下，之后直接读本地，几百毫秒。 */
+
+const IDB_NAME = 'pyquest-assets';
+const IDB_STORE = 'wheels';
+let idbPromise = null;
+
+function idbOpen(){
+  if(idbPromise) return idbPromise;
+  idbPromise = new Promise(resolve => {
+    if(!window.indexedDB){ resolve(null); return; }
+    let req;
+    try{ req = indexedDB.open(IDB_NAME, 1); }catch(e){ resolve(null); return; }
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if(!db.objectStoreNames.contains(IDB_STORE)) db.createObjectStore(IDB_STORE);
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => resolve(null);
+    req.onblocked = () => resolve(null);
+  });
+  return idbPromise;
+}
+
+async function idbGet(key){
+  const db = await idbOpen();
+  if(!db) return null;
+  return new Promise(resolve => {
+    let r;
+    try{ r = db.transaction(IDB_STORE, 'readonly').objectStore(IDB_STORE).get(key); }
+    catch(e){ resolve(null); return; }
+    r.onsuccess = () => resolve(r.result || null);
+    r.onerror = () => resolve(null);
+  });
+}
+
+async function idbDel(keys){
+  if(!keys || !keys.length) return;
+  const db = await idbOpen();
+  if(!db) return;
+  try{
+    const tx = db.transaction(IDB_STORE, 'readwrite');
+    keys.forEach(k => tx.objectStore(IDB_STORE).delete(k));
+  }catch(e){ /* 删不掉就算了，不影响使用 */ }
+}
+
+async function idbPut(key, buf){
+  const db = await idbOpen();
+  if(!db) return false;
+  return new Promise(resolve => {
+    let tx;
+    try{ tx = db.transaction(IDB_STORE, 'readwrite'); }
+    catch(e){ resolve(false); return; }
+    try{ tx.objectStore(IDB_STORE).put(buf, key); }catch(e){ resolve(false); return; }
+    tx.oncomplete = () => resolve(true);
+    tx.onerror = () => resolve(false);
+    tx.onabort = () => resolve(false);
+  });
+}
+
 /* Pyodide 只在整包装完时发一条消息，直接等它进度条会长时间停在 0。
    这里自己按字节流拉一遍 wheel，边下边报进度；后面 loadPackage 直接走浏览器缓存。 */
 
@@ -1892,9 +1953,31 @@ async function doLoadPkgs(need){
       + fmtMB(got / 1048576) + ' / ' + fmtMB(totalMB) + ' MB');
   };
 
+  let fromCache = 0;
+  const cachedFiles = [];       // 记下这次用了哪些缓存，万一装载失败就清掉让下次重下
+  const writes = [];            // 落盘任务，装载前等它们写完，别被关窗口截断
   for(const w of wheels){
     const url = engineBase + w.file;
     const expect = w.mb * 1048576;
+
+    // 本地存过就直接用，不碰网络
+    const hit = await idbGet(w.file);
+    // 长度核对：PKG_SIZE 只有两位小数，小包（比如 0.0657MB 写成 0.07）相对误差能到 6%，
+    // 但差的绝对量很小；真正要防的是当初没下完整（曾经只剩 5.3MB 那种），差的是几十 MB。
+    // 所以取「64KB 或 2%」里更宽松的那个当容差。
+    const diffBytes = hit ? Math.abs(hit.byteLength - expect) : Infinity;
+    const nearExpect = expect > 0 && diffBytes <= Math.max(65536, expect * 0.02);
+    if(hit && hit.byteLength > 0 && (expect <= 0 || nearExpect)){
+      byteCache.set(url, new Uint8Array(hit));
+      cachedFiles.push(w.file);
+      doneBytes += hit.byteLength;
+      fromCache++;
+      if(fromCache === 1 && wheels.length > 1){
+        setPkgProgress(0.05, '从本地缓存读取运行环境…');
+      }
+      continue;
+    }
+
     try{
       const res = await fetch(url);
       if(!res.ok) throw new Error('HTTP ' + res.status);
@@ -1922,11 +2005,20 @@ async function doLoadPkgs(need){
         paint(w, Math.min(cur, expect), true);
       }
       doneBytes += expect;
+
+      // 存一份，下次不用重下。失败无所谓（配额满 / 隐私模式），下次照常下
+      const saved = byteCache.get(url);
+      if(saved) writes.push(idbPut(w.file, saved.buffer));
     }catch(err){
       // 某个包没拉到就算了，装载阶段它会自己再下（慢一点，但不会坏）
       console.warn('[pyquest] 预取 ' + w.name + ' 失败：', err && err.message);
       doneBytes += expect;
     }
+  }
+
+  if(writes.length){
+    setPkgProgress(0.92, '正在缓存到本地…');
+    await Promise.all(writes);
   }
 
   setPkgProgress(0.93, '正在装载环境…');
@@ -1972,6 +2064,8 @@ async function doLoadPkgs(need){
       errorCallback: (msg) => { console.warn('[pyquest] pkg:', msg); }
     });
   }catch(err){
+    // 装载失败有可能是缓存里的包坏了，把这次用到的缓存清掉，下次重新下
+    if(cachedFiles.length) idbDel(cachedFiles);
     clearPkgProgress();
     throw pqError('PACKAGE', need.join('、'), err);
   }finally{
