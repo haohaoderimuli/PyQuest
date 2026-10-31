@@ -290,6 +290,36 @@ async function runAndWait(page, timeout = 120000) {
       check('理论页仍然能滚动', m.scrolled > 0, 'scrollTop ' + m.scrolled);
       await page.close();
     }
+    /* ---- 7. 死循环不能把页面撑死（曾经渲染 139 万行，标签页直接卡掉） ---- */
+    console.log('\n7. 死循环保护');
+    {
+      const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+      page.on('pageerror', e => errors.push('pageerror: ' + e.message));
+      await page.goto(url, { waitUntil: 'domcontentloaded' });
+      await waitReady(page);
+      await page.click('.tab[data-tab="code"]').catch(() => {});
+      await page.waitForSelector('#code', { state: 'visible', timeout: 20000 });
+
+      const t0 = Date.now();
+      await page.fill('#code', 'n = 3\nwhile n < 20:\n    print(n)');
+      await page.click('#runBtn');
+      const v = await page.waitForFunction(() => {
+        const el = document.getElementById('verdict');
+        const t = el && el.textContent;
+        return ['报错', '未通过', '通过'].indexOf(t) >= 0 ? t : false;
+      }, null, { timeout: 30000 }).then(h => h.jsonValue()).catch(() => 'timeout');
+      const cost = (Date.now() - t0) / 1000;
+
+      const st = await page.evaluate(() => {
+        const txt = (document.getElementById('term') || {}).textContent || '';
+        return { chars: txt.length, lines: txt.split('\n').length, head: txt.slice(0, 40) };
+      });
+      check('死循环被拦住', v === '报错', '判定=' + v);
+      check('渲染行数被截断', st.lines < 600, st.lines + ' 行');
+      check('给出的是明确提示', /输出太多|死循环|3 秒/.test(st.head), st.head);
+      check('没有长时间卡住', cost < 15, cost.toFixed(1) + 's');
+      await page.close();
+    }
   } finally {
     await browser.close();
     child.kill();

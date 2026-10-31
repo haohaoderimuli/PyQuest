@@ -1503,13 +1503,27 @@ const PREAMBLE = [
   'import io, sys, time, traceback',
   'class __CheckFailed(Exception):',
   '    pass',
+  'class _TooMuchOut(Exception):',
+  '    pass',
+  'class _CapIO(io.StringIO):',
+  '    def write(self, s):',
+  '        if self.tell() + len(s) > 200000:',
+  '            raise _TooMuchOut()',
+  '        return io.StringIO.write(self, s)',
   'def chk(cond, msg="结果不符合预期"):',
   '    if not cond:',
   '        raise __CheckFailed(msg)',
-  '__buf = io.StringIO()',
+  '__buf = _CapIO()',
   '__old = sys.stdout',
   '__deadline = time.time() + __limit',
+  '__n_evt = 0',
   'def __guard(frame, event, arg):',
+  '    global __n_evt',
+  '    # 只数用户自己那几行：库内部调用（画图之类）动辄几十万次，不能算进来',
+  '    if frame.f_code.co_filename == "<你的代码>":',
+  '        __n_evt += 1',
+  '        if __n_evt > 3000000:',
+  '            raise TimeoutError("执行了太多步，看起来是死循环")',
   '    if time.time() > __deadline:',
   '        raise TimeoutError("运行超过 " + str(int(__limit)) + " 秒仍未结束，检查是不是死循环")',
   '    return __guard',
@@ -1522,6 +1536,8 @@ const PREAMBLE = [
   '    exec(compile(__src, "<你的代码>", "exec"), __g)',
   'except TimeoutError as e:',
   '    __err = "\\u23f1 " + str(e)',
+  'except _TooMuchOut:',
+  '    __err = "\\u23f1 输出太多了（超过 200KB）还没结束——多半是死循环里在疯狂 print。下面只保留了前面这些。"',
   'except SystemExit:',
   '    __exited = True',
   'except BaseException:',
@@ -2551,6 +2567,19 @@ function normalize(text){
   return lines;
 }
 
+/* 输出太长就不全渲染——一百万行的 DOM 会把标签页直接卡死 */
+const MAX_SHOW_LINES = 300;
+function clipLines(src, max){
+  const n = max || MAX_SHOW_LINES;
+  const arr = Array.isArray(src) ? src : String(src == null ? '' : src).split('\n');
+  if(arr.length <= n) return { lines: arr, cut: 0, total: arr.length };
+  return { lines: arr.slice(0, n), cut: arr.length - n, total: arr.length };
+}
+function cutNote(c){
+  return '<div class="row mute" style="opacity:.7">…… 还有 ' + c.cut.toLocaleString()
+    + ' 行没显示（总共 ' + c.total.toLocaleString() + ' 行）</div>';
+}
+
 function firstDiff(got, exp){
   const n = Math.max(got.length, exp.length);
   for(let i = 0; i < n; i++){
@@ -2695,11 +2724,13 @@ async function runCurrent(lv){
     verdictEl.className = 'verdict bad';
     verdictEl.textContent = '报错';
     const tip = explainError(result.err);
+    const outClip = result.out.trim() ? clipLines(result.out.replace(/\s+$/, '')) : null;
     termEl.innerHTML = '<div class="rescard bad"><div class="ttl">✕ 代码报错了</div>'
       + (tip ? '<div class="hintbox" style="margin:0 0 10px"><b>可能是这个原因</b>' + escHtml(tip) + '</div>' : '')
       + '<pre class="err" style="margin:0;font-family:var(--mono);font-size:12px;line-height:1.7;white-space:pre-wrap;word-break:break-word">'
       + escHtml(result.err.trim()) + '</pre></div>'
-      + (result.out.trim() ? '<div class="rescard"><div class="ttl">运行期间已输出的内容</div><div class="cmp"><div class="row mute">' + escHtml(result.out.replace(/\s+$/,'')) + '</div></div></div>' : '');
+      + (outClip ? '<div class="rescard"><div class="ttl">运行期间已输出的内容</div><div class="cmp"><div class="row mute">'
+          + escHtml(outClip.lines.join('\n')) + '</div>' + (outClip.cut ? cutNote(outClip) : '') + '</div></div>' : '');
     return;
   }
 
@@ -2708,8 +2739,10 @@ async function runCurrent(lv){
     termEl.innerHTML = '<div class="ph">正在校验结果…</div>';
     const c = await runCheck(lv.check);
     const userOut = result.out.replace(/\s+$/, '');
-    const trail = userOut
-      ? '<div class="cmp" style="margin-top:9px"><div class="lbl">你的输出</div><div class="row mute">' + escHtml(userOut) + '</div></div>'
+    const userClip = userOut ? clipLines(userOut) : null;
+    const trail = userClip
+      ? '<div class="cmp" style="margin-top:9px"><div class="lbl">你的输出</div><div class="row mute">'
+        + escHtml(userClip.lines.join('\n')) + '</div>' + (userClip.cut ? cutNote(userClip) : '') + '</div>'
       : '';
 
     if(c.ok){
@@ -2772,7 +2805,8 @@ async function runCurrent(lv){
     verdictEl.className = 'verdict ok';
     verdictEl.textContent = '通过';
     termEl.innerHTML = '<div class="rescard ok"><div class="ttl">✓ 通过！</div>'
-      + '<div class="cmp"><div class="lbl">你的输出</div><div class="row exp">' + (escHtml(got.join('\n')) || '(无输出)') + '</div></div></div>';
+      + (() => { const c = clipLines(got); return '<div class="cmp"><div class="lbl">你的输出</div><div class="row exp">'
+          + (escHtml(c.lines.join('\n')) || '(无输出)') + '</div>' + (c.cut ? cutNote(c) : '') + '</div></div>'; })();
     state.cleared[lv.id] = true;
     saveState();
     renderNav(); renderProgress();
@@ -2785,9 +2819,11 @@ async function runCurrent(lv){
     html += '<div class="cmp">';
     html += '<div><div class="lbl">你的输出' + (got.length ? '' : '（空）') + '</div>';
     if(got.length){
-      got.forEach((line, i) => {
+      const gv = clipLines(got);
+      gv.lines.forEach((line, i) => {
         html += '<div class="row ' + (line === exp[i] ? 'mute' : 'got') + '">' + (i === d ? '▸ ' : '  ') + escHtml(line) + '</div>';
       });
+      if(gv.cut) html += cutNote(gv);
     }else{
       html += '<div class="row got">（程序什么都没打印）</div>';
     }
