@@ -255,6 +255,41 @@ async function runAndWait(page, timeout = 120000) {
       check('导出能触发下载', !!dl, dl ? dl.suggestedFilename() : '没拿到下载事件');
       await page.close();
     }
+
+    /* ---- 6. 长输出之后，左栏还能不能滚（曾经被撑到 3000px 且滚不动） ---- */
+    console.log('\n6. 长输出后的滚动');
+    {
+      const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+      page.on('pageerror', e => errors.push('pageerror: ' + e.message));
+      await page.goto(url, { waitUntil: 'domcontentloaded' });
+      await waitReady(page);
+      await page.click('.tab[data-tab="code"]').catch(() => {});
+      await page.waitForSelector('#code', { state: 'visible', timeout: 20000 });
+      await page.fill('#code', 'for i in range(1, 101):\n    print(i)');
+      await page.click('#runBtn');
+      await page.waitForFunction(() => {
+        const v = document.getElementById('verdict');
+        return v && ['通过', '未通过', '报错'].indexOf(v.textContent) >= 0;
+      }, null, { timeout: 60000 });
+
+      // 必须先切回理论页——动手页内容本来就装得下，scrollTop 当然是 0
+      await page.click('.tab[data-tab="learn"]').catch(() => {});
+      await page.waitForTimeout(400);
+      const m = await page.evaluate(() => {
+        const left = document.querySelector('.left');
+        const term = document.querySelector('.term');
+        left.scrollTop = 9999;
+        return {
+          leftH: Math.round(left.getBoundingClientRect().height),
+          scrolled: Math.round(left.scrollTop),
+          termOverflow: term.scrollHeight - term.clientHeight
+        };
+      });
+      check('左栏没有被输出撑爆', m.leftH < 1000, '高度 ' + m.leftH + 'px');
+      check('输出面板自己内部滚动', m.termOverflow > 1000, '可滚 ' + m.termOverflow + 'px');
+      check('理论页仍然能滚动', m.scrolled > 0, 'scrollTop ' + m.scrolled);
+      await page.close();
+    }
   } finally {
     await browser.close();
     child.kill();
