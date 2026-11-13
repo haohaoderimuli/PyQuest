@@ -31,6 +31,38 @@ mimetypes.add_type('application/zip', '.whl')   # wheel 本质就是 zip，比 o
 mimetypes.add_type('application/json', '.json')
 mimetypes.add_type('text/csv', '.csv')          # Windows 注册表常把它标成 vnd.ms-excel
 
+# 静态白名单：游戏运行所需的后缀照常放行；工具包的手册与配置只在 toolkits/ 内放行。
+# 目的是既能下载实操包，又不把 serve.py / README.md / tests/ / .git 暴露出去。
+BASE_EXT = {
+    '.html', '.htm', '.js', '.mjs', '.css', '.json', '.csv', '.svg',
+    '.png', '.jpg', '.jpeg', '.gif', '.ico', '.otf', '.ttf', '.woff',
+    '.woff2', '.wasm', '.whl', '.zip', '.data', '.map', '.txt', '.lock',
+}
+TOOLKIT_EXT = {'.md', '.py', '.toml', '.ini', '.yaml', '.yml', '.cfg', '.rst'}
+TOOLKIT_NAMES = {'Makefile', '.ruff.toml', '.pre-commit-config.yaml'}
+BLOCKED_PARTS = {'.git', '__pycache__', 'node_modules', 'tests'}
+
+
+def is_allowed(raw_path):
+    from urllib.parse import unquote
+    path = unquote(raw_path.split('?', 1)[0].split('#', 1)[0])
+    if path.startswith('/'):
+        path = path[1:]
+    if not path:
+        return True  # 根路径交给 index.html
+    parts = path.split('/')
+    if any(part in BLOCKED_PARTS for part in parts):
+        return False
+    if path.endswith('/'):
+        return False  # 不列目录
+    name = parts[-1]
+    ext = os.path.splitext(name)[1].lower()
+    if ext in BASE_EXT:
+        return True
+    if parts[0] == 'toolkits' and (ext in TOOLKIT_EXT or name in TOOLKIT_NAMES):
+        return True
+    return False
+
 # 大文件长缓存：这些是固定版本的运行时和依赖，刷新时没必要重读 50MB
 LONG_CACHE = ('.whl', '.wasm', '.zip', '.data', '.js', '.mjs')
 MID_CACHE = ('.csv',)
@@ -52,6 +84,18 @@ def pick_port(start=8770, tries=20):
 
 
 class Handler(http.server.SimpleHTTPRequestHandler):
+    def do_GET(self):
+        if not is_allowed(self.path):
+            self.send_error(404, "Not Found")
+            return
+        super().do_GET()
+
+    def do_HEAD(self):
+        if not is_allowed(self.path):
+            self.send_error(404, "Not Found")
+            return
+        super().do_HEAD()
+
     def end_headers(self):
         path = self.path.split('?')[0].split('#')[0]
         ext = os.path.splitext(path)[1].lower()

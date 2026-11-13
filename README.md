@@ -1,6 +1,8 @@
 # 蛇之塔 · PyQuest
 
-一个跑在浏览器里的 Python 闯关游戏。**32 关 9 章**，从 `print` 一路到 `pandas` 分组分析、`matplotlib` 画图，最后一关产出一份可下载的分析报告。
+一个跑在浏览器里的 Python 闯关游戏。**39 关 11 章**，从 `print` 一路到 `pandas` 分组分析、`matplotlib` 画图，再到**脚本工程化**：argparse、pathlib、异常与 logging、dataclass、unittest、退出码与幂等、可交付 CLI。最后一关产出一份可下载的分析报告，工程化七关另串成一条可导出的交付链。
+
+另有**岗位知识库 8 篇**与**真工具实操包**（venv / pytest / ruff / CI / 打包的逐步手册与真实配置文件），补的是「写代码片段」和「写能交付的脚本」之间的距离。
 
 **没有后端、没有构建步骤、没有网络依赖。** 代码在你本机的 Python 运行时里真跑，判题是真的执行结果，不是字符串匹配。
 
@@ -29,11 +31,12 @@ python serve.py
 ## 目录里都有什么
 
 ```
-index.html          整个游戏（HTML + CSS + JS 全内联，约 113KB）
-serve.py            本地静态服务器，带正确的 MIME 和缓存策略
+index.html          整个游戏（HTML + CSS + JS 全内联，含 39 关 / 理论卡 / 知识库 / 工具台 / 交付链）
+serve.py            本地静态服务器，带正确的 MIME、缓存策略与静态白名单
 启动游戏.bat        Windows 启动入口
 package.json        只有 devDependencies，运行时零依赖
 pyodide/            Python 运行时 + 各库的 wheel（约 72MB）
+toolkits/           真工具实操包：6 组逐步手册 + 19 个真实配置/脚本文件
 data/               关卡用的数据文件
   orders.csv          2400 条合成电商订单
   products.csv        40 个商品（成本、库存、上架时间）
@@ -43,6 +46,7 @@ tests/
   run_levels.mjs      跑所有关卡参考解 + 反例
   solutions.mjs       参考解和反例的代码
   e2e.mjs             浏览器端端到端测试
+  e2e_engineering.mjs 工程化扩展的浏览器验收（新视图 / 下载 / 自评 / 交付链）
 ```
 
 ---
@@ -60,6 +64,8 @@ tests/
 | 7 联结之桥 | merge、pivot_table、日期、综合 | 4 |
 | 8 绘图台 | matplotlib 折线、柱状、双系列 + 图例 | 3 |
 | 9 结算台 | **项目实战**：从需求到清洗、分析、出图、生成报告 | 1 |
+| 10 脚本工坊 | **工程化基础**：argparse / pathlib 与编码 / 异常与 logging / dataclass 与类型注解 | 4 |
+| 11 交付之门 | **可维护的脚本**：unittest / 退出码与幂等 / BOSS 可交付 CLI | 3 |
 
 每一关都是「理论 / 动手」两个页签：
 
@@ -72,6 +78,35 @@ tests/
 - **断言判题**（第 6–7 章）：不看打印了什么，而是在同一个命名空间里跑隐藏断言，直接检查 `result` 的数据结构。答错时告诉你「列名不对」「行数不对」「少了 3 个空值没处理」这种具体原因。
 - **图表判题**（第 8 章）：检查 `Figure` 对象的结构——几条线、每个点的数值、标题、轴标签、图例文字，而不是比对像素。通过后把图画出来给你看。
 - **多产出判题**（第 9 章）：同时校验一个 `report` 字典里的 7 个指标和一张图，每项独立报错。通过后把你算的数字和图拼成一份 HTML 报告，可以直接下载存档。
+- **工程化断言判题**（第 10–11 章）：在同一个命名空间里真跑标准库——`argparse` 解析参数、`pathlib` 写文件再读回、`logging` 捕获 warning、`dataclasses.fields` 检查结构、`unittest.TestLoader` 真跑你写的测试、同一参数调两次比结果验幂等。判的是脚本行为，不是打印了什么。
+
+---
+
+## 工程化扩展：从代码段到能交付的脚本
+
+前 32 关回答「这段 Python 会不会写」，后面这层回答「写出来的东西能不能交给别人跑」。
+
+**三个新视图**（顶栏切换，不影响闯关进度）：
+
+| 视图 | 内容 |
+| --- | --- |
+| 知识库 | 8 篇岗位内容：脚本与代码段、venv 与依赖、项目结构、配置与密钥、异常与日志、测试与覆盖率、类型与静态检查、Git/CI 与打包。每篇标了对应关卡与配套文件 |
+| 真工具实操 | 6 组工具的逐步手册 + 19 个真实文件下载（`requirements.txt`、`pyproject.toml`、`pytest.ini`、`.ruff.toml`、`.pre-commit-config.yaml`、`daily_report.py`、`logging_config.py`、`python-ci.yml`、`Makefile`、交付清单等）。勾选是**自评**，只存 localStorage，不写通关记录、不加 XP |
+| 交付链 | 把工程化七关串成一条链，状态直接读 `state.cleared`，可导出独立 HTML 清单当作品附件 |
+
+**七关真跑什么**：`10-1` argparse 解析、`10-2` pathlib + UTF-8 往返、`10-3` 自定义异常 + logging.warning 真被捕获、`10-4` dataclass 与返回注解、`11-1` unittest 真跑你写的测试类、`11-2` 退出码 0/2 与幂等、`11-3` BOSS 把入口/处理/落盘/日志/退出码组装起来。参考解与 7 个反例都在 `tests/solutions.mjs`，由 `run_levels.mjs` 在**项目自带的 Pyodide** 里真跑验证。
+
+**`toolkits/cli/daily_report.py` 只用标准库**，可以在本机直接跑（不需要 pandas）：
+
+```bash
+python toolkits/cli/daily_report.py --help
+python toolkits/cli/daily_report.py --input data/orders.csv --output out/report.json --limit 100
+python -m unittest discover -s toolkits/testing -p "test_*.py" -v
+```
+
+**静态白名单**：`serve.py` 只放行游戏运行所需后缀；`.md/.py/.toml/.ini/.yaml/.yml` 等**仅在 `toolkits/` 目录内**放行，`Makefile` 按文件名特例放行。根目录 `serve.py`、`README.md`、`tests/`、`.git` 一律 404，目录列表关闭。
+
+**边界，说清楚**：PyQuest 在浏览器里跑的是 Python 代码片段，**装不了 venv、pytest、ruff、pre-commit、CI**。这些工具的手册与配置文件已做静态校验，`daily_report.py` 与 `test_channel_report.py` 在本机真跑过（CLI 退出码 0/2、5 项 unittest 通过）；其余要你在自己的环境里按手册跑通，留下的测试报告、日志与提交历史才是完整证据。
 
 ---
 
@@ -87,7 +122,9 @@ node tests/run_levels.mjs
 # 浏览器端 E2E
 # 第一次跑之前必须先装依赖，否则会报「找不到 playwright-core」
 npm install
+python serve.py                         # 另开一个终端，默认 8770
 node tests/e2e.mjs
+node tests/e2e_engineering.mjs           # 工程化扩展的新视图验收
 ```
 
 `package.json` 里只有 `devDependencies: playwright-core` 一项，游戏本身零依赖。
@@ -99,10 +136,10 @@ node tests/e2e.mjs
 期望输出：
 
 ```
-参考解 32/32 通过，反例 24/24 拦下
+参考解 39/39 通过，反例 31/31 拦下
 ```
 
-反例是 24 个「故意写错」的答案（大小写不一致、差一错误、忘了汇总、分母口径错、两个格子互换但总额不变、图画对了但没标题、柱状图没排序、把「GMV 最高」当成「客单价最高」……），用来确认判题不会把它们放过去。
+反例是 31 个「故意写错」的答案（大小写不一致、差一错误、忘了汇总、分母口径错、两个格子互换但总额不变、图画对了但没标题、柱状图没排序、把「GMV 最高」当成「客单价最高」……以及工程化关里 `--limit` 忘了 `type=int`、中文写成 `\uXXXX`、用 print 代替 logging、只写 1 个测试、参数错抛 SystemExit、追加写文件破坏幂等），用来确认判题不会把它们放过去。
 
 改关卡、改 `expect`、改 `PREAMBLE` 之后都该跑一遍。
 
@@ -134,6 +171,7 @@ node tests/e2e.mjs
 - 项目关（9-1）的报告是自动拼的：数字来自你的 `report`，结论句是模板化的，不是 AI 写的。想加自己的解读，改 `index.html` 里的 `buildReportHtml`。
 - 进度存在浏览器 localStorage 里，没有云同步。换设备或换浏览器时，用顶栏「⋯」→「导出进度」存成 JSON，在新环境里「导入进度」即可。
 - 进度是按**网址**存的。`serve.py` 端口从 8770 往后找，如果 8770 被占用而挪到 8771，浏览器会当成另一个站点，进度看着像丢了——关掉占用的那个实例再开即可。
+- 工程化扩展里的 venv / pytest / ruff / pre-commit / CI **不在浏览器里跑**：`toolkits/` 给的是逐步手册与真实配置文件，其中 `daily_report.py`（标准库 CLI）和 `test_channel_report.py`（5 项 unittest）已在本机真跑过，其余需要你在自己的环境里按手册跑通。页面里的自评勾选只存 localStorage，不写通关记录、不加 XP。
 
 ---
 
