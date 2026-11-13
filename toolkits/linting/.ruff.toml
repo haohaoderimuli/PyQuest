@@ -1,0 +1,23 @@
+# ruff 配置示例（放到项目根目录）
+line-length = 100
+target-version = "py310"
+
+[lint]
+select = [
+    "E",    # pycodestyle 错误
+    "F",    # Pyflakes：未用 import、未定义名
+    "W",    # 警告
+    "I",    # import 排序
+    "B",    # flake8-bugbear：常见坑
+    "UP",   # 现代语法建议
+]
+ignore = [
+    "E501",  # 行宽交给 black 管
+]
+
+[lint.per-file-ignores]
+"tests/*" = ["B011"]
+
+[format]
+quote-style = "double"
+indent-style = "space"
