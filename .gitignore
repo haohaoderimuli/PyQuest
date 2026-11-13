@@ -6,3 +6,6 @@ Thumbs.db
 .idea/
 node_modules/
 *.log
+tests/shots/
+toolkits/cli/out/
+toolkits/cli/logs/

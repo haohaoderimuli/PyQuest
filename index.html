@@ -405,6 +405,15 @@
     .prog{flex:0 0 auto;justify-content:flex-end}
     h2{font-size:20px}
   }
+  @media (max-width:640px){
+    /* 顶栏四块挤在 390px 时会把页面撑出横向滚动条（菜单按钮跑到 432px）。
+       隐藏引擎状态、让进度区可收缩，最右侧菜单才回得来。 */
+    header{gap:8px;padding:8px 12px}
+    header .engine{display:none}
+    header .prog{flex:1 1 auto;min-width:0;justify-content:flex-end}
+    header .brand h1{font-size:16px}
+    #viewTabs{flex:1 1 auto;min-width:70px;padding:0}
+  }
 </style>
 </head>
 <body>
@@ -430,6 +439,7 @@
   <div class="menu-wrap">
     <button class="menu-btn" id="menuBtn" aria-label="更多操作" aria-haspopup="menu" aria-expanded="false">⋯</button>
   </div>
+  <nav id="viewTabs" aria-label="主视图" style="display:flex;gap:5px;align-items:center;flex:0 1 auto;min-width:0;overflow-x:auto;scrollbar-width:none"></nav>
 </header>
 
 <div class="layout">
@@ -453,6 +463,12 @@
   </main>
 </div>
 
+<section id="extras" hidden style="max-width:1080px;margin:0 auto;padding:24px 18px 70px;color:var(--ink)">
+  <div id="pane-library" hidden></div>
+  <div id="pane-toolkits" hidden></div>
+  <div id="pane-pipeline" hidden></div>
+</section>
+
 <script>
 /* =========================================================
    1. 关卡数据
@@ -466,7 +482,9 @@ const CHAPTERS = [
   { id:6, name:'数据初探', sub:'pandas 读表' },
   { id:7, name:'联结之桥', sub:'merge 与透视' },
   { id:8, name:'绘图台', sub:'matplotlib' },
-  { id:9, name:'结算台', sub:'项目实战' }
+  { id:9, name:'结算台', sub:'项目实战' },
+  { id:10, name:'脚本工坊', sub:'工程化基础' },
+  { id:11, name:'交付之门', sub:'可维护的脚本' }
 ];
 
 const LEVELS = [
@@ -1138,6 +1156,195 @@ const LEVELS = [
       '月度：done.assign(m=pd.to_datetime(done["order_time"]).dt.strftime("%Y-%m")).groupby("m")["amount"].sum()',
       '画图：ax.plot(月份列表, 金额列表, marker="o")，再加 set_title / set_xlabel / set_ylabel'
     ]
+  },
+
+  /* ---------- 第十章：脚本工坊（企业里写 Python 脚本，从这里开始） ---------- */
+  {
+    id:'10-1', ch:10, title:'命令行 · 让脚本能被调度',
+    goal:'用 argparse 写出真正能带参数跑的脚本入口',
+    brief:'浏览器里的代码段只能自己点「运行」；企业里的脚本要被别人、被定时任务、被 CI 带着参数跑。<b>写死在代码里的变量不算配置</b>，参数解析才是脚本的入口。',
+    mode:'check', expect:[],
+    starter:'import argparse\n\n\ndef build_parser():\n    # 返回 ArgumentParser：--channel（默认 all）\n    # --limit（int，默认 10）、--verbose（store_true）\n    pass\n',
+    check:[
+      'chk("build_parser" in globals(), "还没有定义 build_parser()")',
+      'import argparse',
+      '_p = build_parser()',
+      'chk(isinstance(_p, argparse.ArgumentParser), "build_parser 要返回一个 argparse.ArgumentParser")',
+      '_a = _p.parse_args(["--channel", "App", "--limit", "3", "--verbose"])',
+      'chk(_a.channel == "App", "channel 没解析出来")',
+      'chk(_a.limit == 3 and isinstance(_a.limit, int), "limit 应该是整数 3，检查 type=int")',
+      'chk(_a.verbose is True, "verbose 应该是 store_true")',
+      '_b = _p.parse_args([])',
+      'chk(_b.channel == "all", "默认 channel 应该是 all")',
+      'chk(_b.limit == 10, "默认 limit 应该是 10")'
+    ].join('\n'),
+    hints:[
+      'p = argparse.ArgumentParser(description="...")',
+      'p.add_argument("--channel", default="all")；p.add_argument("--limit", type=int, default=10)',
+      '开关用 action="store_true"，不要写成要传值的参数'
+    ]
+  },
+  {
+    id:'10-2', ch:10, title:'文件 · pathlib 与中文编码',
+    goal:'把结果写成文件，再原样读回来',
+    brief:'脚本和 notebook 最大的区别之一：<b>产出要落盘</b>。路径用 pathlib 拼，读写显式指定 <code>encoding="utf-8"</code>，否则中文在 Windows 上就是乱码，或者换台机器直接报错。',
+    mode:'check', expect:[],
+    starter:'import json\nfrom pathlib import Path\n\n\ndef save_report(data, path):\n    # 写 JSON，中文不要变成 \\uXXXX\n    pass\n\n\ndef load_report(path):\n    # 读回同样的 Python 对象\n    pass\n',
+    check:[
+      'chk("save_report" in globals() and "load_report" in globals(), "两个函数都要定义")',
+      'import json, pathlib, tempfile',
+      '_tmp = pathlib.Path(tempfile.gettempdir()) / "pyquest_report.json"',
+      '_data = {"channel": "自然搜索", "orders": 12, "amount": 226.1}',
+      'save_report(_data, str(_tmp))',
+      'chk(_tmp.exists(), "文件没有写出来，检查路径与写入语句")',
+      '_back = load_report(str(_tmp))',
+      'chk(_back == _data, "读回来的内容和写入的不一致：%r" % (_back,))',
+      '_txt = _tmp.read_text(encoding="utf-8")',
+      'chk("自然搜索" in _txt, "中文被转成了转义序列，写文件时用 ensure_ascii=False")',
+      'chk(json.loads(_txt)["orders"] == 12, "文件不是合法 JSON")'
+    ].join('\n'),
+    hints:[
+      'Path(path).write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")',
+      '读回：json.loads(Path(path).read_text(encoding="utf-8"))',
+      '别用 open(..., "w") 不写编码，Windows 默认 GBK 会把中文写坏'
+    ]
+  },
+  {
+    id:'10-3', ch:10, title:'异常与日志 · 别让脚本半夜静默死掉',
+    goal:'自定义异常、捕获可预期的错误、用 logging 留痕',
+    brief:'企业里没人盯着你的脚本看输出。<b>print 不是日志</b>：日志有级别、能写到文件、能被采集。遇到坏数据时，要么明确抛出自定义异常，要么记 warning 后跳过——绝不能默默算错。',
+    mode:'check', expect:[],
+    starter:'import logging\n\nlogger = logging.getLogger(__name__)\n\n\nclass CalcError(Exception):\n    pass\n\n\ndef safe_div(a, b):\n    # b 为 0 时抛 CalcError\n    pass\n\n\ndef compute(values):\n    # 对每个 v 算 safe_div(100, v) 并累加\n    # 遇到 CalcError 记 warning 后跳过，返回 round(total, 2)\n    pass\n',
+    check:[
+      'chk("CalcError" in globals() and issubclass(CalcError, Exception), "CalcError 要继承 Exception")',
+      'chk("safe_div" in globals() and "compute" in globals(), "两个函数都要定义")',
+      '_caught = False',
+      'try:\n    safe_div(10, 0)\nexcept CalcError:\n    _caught = True',
+      'chk(_caught, "除以 0 应该抛 CalcError，而不是 ZeroDivisionError 或返回 None")',
+      'chk(abs(safe_div(10, 4) - 2.5) < 1e-9, "safe_div(10, 4) 应该是 2.5")',
+      'import io, logging',
+      '_buf = io.StringIO()',
+      '_h = logging.StreamHandler(_buf)',
+      '_h.setFormatter(logging.Formatter("%(levelname)s %(message)s"))',
+      '_root = logging.getLogger()',
+      '_old = _root.level',
+      '_root.addHandler(_h); _root.setLevel(logging.WARNING)',
+      '_r = compute([10, 0, 5])',
+      '_root.removeHandler(_h); _root.setLevel(_old)',
+      'chk(abs(float(_r) - 30.0) < 0.01, "compute([10, 0, 5]) 应该是 30.0（100/10 + 100/5）")',
+      'chk("WARNING" in _buf.getvalue() or "warning" in _buf.getvalue().lower(), "遇到 0 时没有用 logging 记 warning")'
+    ].join('\n'),
+    hints:[
+      'if b == 0: raise CalcError("除数不能为 0")',
+      'logger.warning("跳过非法值: %s", e) —— 用 %s 懒格式化，别提前拼字符串',
+      'except CalcError: 只捕你能处理的异常，别写裸 except: pass'
+    ]
+  },
+  {
+    id:'10-4', ch:10, title:'类型与数据类 · 让三个月后的自己看得懂',
+    goal:'用 dataclass + 类型注解把散落的字典收成结构',
+    brief:'脚本写长了，<code>d["amount"]</code> 满天飞，谁也不知道里面有什么。<b>dataclass 把字段写在一处</b>，类型注解让编辑器和同事一眼看出输入输出，函数签名本身就是文档。',
+    mode:'check', expect:[],
+    starter:'from dataclasses import dataclass\n\n\n@dataclass\nclass Order:\n    order_no: str\n    channel: str\n    qty: int\n    price: float\n\n    def total(self) -> float:\n        pass\n\n\ndef format_order(o: Order) -> str:\n    pass\n',
+    check:[
+      'import dataclasses',
+      'chk("Order" in globals() and dataclasses.is_dataclass(Order), "Order 要用 @dataclass")',
+      '_fields = {f.name for f in dataclasses.fields(Order)}',
+      'chk({"order_no", "channel", "qty", "price"} <= _fields, "四个字段要写全")',
+      '_o = Order("SO-1", "自然搜索", 3, 75.5)',
+      'chk(abs(_o.total() - 226.5) < 0.01, "total() 应该是 qty * price 保留两位")',
+      'chk("format_order" in globals(), "还要定义 format_order")',
+      '_ann = getattr(format_order, "__annotations__", {})',
+      'chk(_ann.get("return") is str, "format_order 缺 -> str 返回注解")',
+      'chk("自然搜索" in format_order(_o) and "226.50" in format_order(_o), "格式化结果要包含渠道与两位小数的金额")'
+    ].join('\n'),
+    hints:[
+      'def total(self) -> float: return round(self.qty * self.price, 2)',
+      '格式化用 f"{o.order_no} | {o.channel} | {o.total():.2f}"',
+      '-> str 是返回类型注解，不是运行时转换；它给读代码的人和工具看'
+    ]
+  },
+
+  /* ---------- 第十一章：交付之门（能测试、能重跑、能交给别人） ---------- */
+  {
+    id:'11-1', ch:11, title:'测试 · 自己先证明它没坏',
+    goal:'为函数写 unittest，并让测试真的跑过',
+    brief:'改一行代码，怎么知道没把别处改坏？<b>靠测试，不靠「我看着没问题」</b>。标准库自带 unittest，不需要装任何东西；把边界、空值、大小写都写成用例，CI 里一条命令就能跑。',
+    mode:'check', expect:[],
+    starter:'import unittest\n\n\ndef normalize_name(s):\n    # 去掉首尾空格并转小写\n    pass\n\n\nclass TestNormalize(unittest.TestCase):\n    # 至少写 3 个 test_ 开头的方法\n    pass\n',
+    check:[
+      'import unittest, io',
+      'chk("normalize_name" in globals(), "还没有定义 normalize_name")',
+      'chk(normalize_name("  Ann  ") == "ann", "normalize_name 要 strip + lower")',
+      'chk("TestNormalize" in globals(), "还要定义 TestNormalize(unittest.TestCase)")',
+      '_suite = unittest.TestLoader().loadTestsFromTestCase(TestNormalize)',
+      'chk(_suite.countTestCases() >= 3, "至少写 3 个 test_ 开头的测试方法，现在只有 %d 个" % _suite.countTestCases())',
+      '_res = unittest.TextTestRunner(stream=io.StringIO(), verbosity=0).run(_suite)',
+      'chk(_res.wasSuccessful(), "你自己写的测试没跑过：%s" % (_res.failures,))'
+    ].join('\n'),
+    hints:[
+      'class TestNormalize(unittest.TestCase): 里写 def test_xxx(self): self.assertEqual(...)',
+      '至少覆盖：带空格、空字符串、大小写混合',
+      'unittest 会自动收集 test_ 开头的方法，方法名别写成 check_xxx'
+    ]
+  },
+  {
+    id:'11-2', ch:11, title:'退出码与幂等 · 让调度器信得过',
+    goal:'正常返回 0、参数错返回 2、同参数重跑结果一致',
+    brief:'脚本被定时任务或 CI 调用时，对方只看两样东西：<b>退出码</b>和<b>能不能重跑</b>。抛异常到一半、留下半份文件、同样的参数两次结果不同，都会让上游不敢用。',
+    mode:'check', expect:[],
+    starter:'import argparse\n\n\ndef run(argv=None):\n    # 返回 (输出文本, 退出码)\n    # 正常 0；参数非法 2（不要抛异常出去）\n    pass\n',
+    check:[
+      'chk("run" in globals(), "还没有定义 run")',
+      '_o1, _c1 = run(["--channel", "App", "--limit", "2"])',
+      'chk(_c1 == 0, "正常参数应该返回退出码 0")',
+      'chk("App" in _o1 and "2" in _o1, "输出要带上渠道与条数")',
+      '_o2, _c2 = run(["--channel", "App", "--limit", "2"])',
+      'chk((_o2, _c2) == (_o1, _c1), "同样参数跑两次结果要一致（幂等）")',
+      '_ob, _cb = run(["--limit", "bad"])',
+      'chk(_cb == 2, "非法参数应该返回退出码 2，而不是抛异常")',
+      'chk(("错误" in _ob or "用法" in _ob or "usage" in _ob.lower()), "出错时要给一句人能看懂的提示")'
+    ].join('\n'),
+    hints:[
+      'argparse 解析失败会抛 SystemExit，用 try/except SystemExit 接住并返回 2',
+      '别写 datetime.now()、全局计数器、追加写文件——这些都会破坏幂等',
+      '返回 (str, int) 元组，别在库函数里直接 sys.exit()'
+    ]
+  },
+  {
+    id:'11-3', ch:11, title:'BOSS · 把 notebook 重构成可交付脚本', boss:true,
+    goal:'把一段分析片段拆成入口、处理、落盘、日志、退出码',
+    brief:'最后一关不教新语法：把前面散落的写法<b>组装成一个别人能直接拿去跑的脚本</b>。要求有 main(argv)、参数解析、日志文件读写、自定义异常、logging、退出码，并且重跑结果一致。',
+    mode:'check', expect:[],
+    starter:'import argparse\nimport json\nimport logging\nfrom pathlib import Path\n\nlogger = logging.getLogger("daily_report")\n\n\nclass ReportError(Exception):\n    pass\n\n\ndef process(data, limit):\n    # 返回统计字典：orders / revenue / channel_count\n    pass\n\n\ndef main(argv=None):\n    # 解析 --input / --output / --limit\n    # 读数据 -> process -> 写 JSON 文件 -> 返回退出码\n    # 参数/文件错误返回 2，成功返回 0\n    pass\n\nif __name__ == "__main__":\n    main()\n',
+    check:[
+      'chk("main" in globals() and callable(main), "入口 main(argv=None) 要定义")',
+      'chk("process" in globals(), "处理逻辑要单独放进 process")',
+      'chk("ReportError" in globals() and issubclass(ReportError, Exception), "要定义 ReportError")',
+      'chk("logger" in globals(), "要用 logging 留痕，别用 print 代替")',
+      'import json, pathlib, tempfile',
+      '_inp = pathlib.Path(tempfile.gettempdir()) / "pyquest_boss_in.json"',
+      '_out = pathlib.Path(tempfile.gettempdir()) / "pyquest_boss_out.json"',
+      '_inp.write_text(json.dumps([{"channel": "App", "amount": 100}, {"channel": "Web", "amount": 50}, {"channel": "App", "amount": 25}], ensure_ascii=False), encoding="utf-8")',
+      '_rc = main(["--input", str(_inp), "--output", str(_out), "--limit", "2"])',
+      'chk(_rc == 0, "正常跑要返回退出码 0，实际 %r" % (_rc,))',
+      'chk(_out.exists(), "没有写出报告文件")',
+      '_rep = json.loads(_out.read_text(encoding="utf-8"))',
+      'chk({"orders", "revenue", "channel_count"} <= set(_rep.keys()), "报告里要含 orders / revenue / channel_count")',
+      'chk(_rep["orders"] == 2, "limit=2 时应该只处理前 2 条")',
+      'chk(abs(float(_rep["revenue"]) - 150.0) < 0.01, "前两条收入合计应该是 150")',
+      'chk(_rep["channel_count"] == 2, "渠道数应该是 2")',
+      '_rc2 = main(["--input", str(_inp), "--output", str(_out), "--limit", "2"])',
+      'chk(_rc2 == 0 and json.loads(_out.read_text(encoding="utf-8")) == _rep, "重跑一次结果要完全一致（幂等）")',
+      '_bad = main(["--input", "不存在的文件.json", "--output", str(_out)])',
+      'chk(_bad == 2, "文件不存在时要返回退出码 2，不能抛异常到外面")'
+    ].join('\n'),
+    hints:[
+      'main 里用 try/except (OSError, ReportError) 包住读文件，出错 logger.error 后返回 2',
+      'process 里先按 limit 切片，再算 len / sum / 唯一渠道数',
+      '写文件用 Path.write_text(json.dumps(..., ensure_ascii=False), encoding="utf-8")，覆盖写而不是追加',
+      'if __name__ == "__main__": 里只调 main()，不要在模块导入时就执行业务逻辑'
+    ]
   }
 ];
 
@@ -1145,6 +1352,45 @@ const LEVELS = [
    1.5 理论卡：每关「概念 → 示例 → 动手」
    ========================================================= */
 const THEORY = {
+  /* ---------- 第十章：脚本工坊 ---------- */
+  '10-1':[
+    { h:'脚本和代码段的区别：入口', p:'浏览器里点「运行」是你在调它；企业里是<b>调度器、CI、同事</b>在调它。参数必须来自命令行，不能写死在代码里。', code:'import argparse\np = argparse.ArgumentParser()\np.add_argument("--limit", type=int, default=10)\nprint(p.parse_args(["--limit", "3"]).limit)' },
+    { h:'默认值是契约的一部分', p:'<code>default=</code> 决定「不传参数时脚本干什么」。改默认值等于改接口，要写进文档或 --help。', code:'import argparse\np = argparse.ArgumentParser()\np.add_argument("--channel", default="all")\nprint(p.parse_args([]).channel)\nprint(p.parse_args(["--channel", "App"]).channel)' },
+    { h:'开关参数用 store_true', p:'布尔开关别写成 <code>--verbose True</code>；<code>action="store_true"</code> 才是命令行惯例，不传就是 False。', code:'import argparse\np = argparse.ArgumentParser()\np.add_argument("--verbose", action="store_true")\nprint(p.parse_args([]).verbose, p.parse_args(["--verbose"]).verbose)' }
+  ],
+  '10-2':[
+    { h:'pathlib 比字符串拼路径稳', p:'<code>Path("out") / "report.json"</code> 自动处理分隔符；<code>"out" + "/report.json"</code> 在 Windows 上迟早出错。', code:'from pathlib import Path\np = Path("out") / "report.json"\nprint(p)\nprint(p.parent, p.suffix)' },
+    { h:'编码必须显式写', p:'Windows 默认编码常常不是 UTF-8。<code>write_text(..., encoding="utf-8")</code> 和 <code>read_text(encoding="utf-8")</code> 要成对出现。', code:'from pathlib import Path\np = Path("demo.txt")\np.write_text("自然搜索", encoding="utf-8")\nprint(p.read_text(encoding="utf-8"))' },
+    { h:'ensure_ascii=False 才保住中文', p:'<code>json.dumps</code> 默认把中文转成 <code>\\uXXXX</code>。文件是合法 JSON，但人没法直接看。', code:'import json\nd = {"channel": "自然搜索"}\nprint(json.dumps(d))\nprint(json.dumps(d, ensure_ascii=False))' }
+  ],
+  '10-3':[
+    { h:'自定义异常比返回 None 好', p:'出错时返回 None，调用方常常忘了判空，错误会拖到三步以后才炸。抛 <code>CalcError</code> 能当场说清发生了什么。', code:'class CalcError(Exception):\n    pass\ndef safe_div(a, b):\n    if b == 0:\n        raise CalcError("除数不能为 0")\n    return a / b\ntry:\n    safe_div(1, 0)\nexcept CalcError as e:\n    print("捕获:", e)' },
+    { h:'logging 有级别、能落盘', p:'<code>print</code> 只能给人看一眼；logging 能按级别过滤、写文件、被采集系统收走。库代码里尤其不要 print。', code:'import logging\nlogger = logging.getLogger("demo")\nlogging.basicConfig(level=logging.INFO)\nlogger.warning("跳过了一条坏数据: %s", "b=0")\nlogger.info("正常完成")' },
+    { h:'只捕你能处理的异常', p:'<code>except Exception: pass</code> 会把真正的 bug 一起吞掉。捕 <code>CalcError</code>，记 warning，继续处理下一条。', code:'import logging\ndef compute(values):\n    total = 0\n    for v in values:\n        try:\n            total += 100 / v\n        except ZeroDivisionError as e:\n            logging.getLogger("demo").warning("跳过: %s", e)\n    return total\nprint(compute([10, 0, 5]))' }
+  ],
+  '10-4':[
+    { h:'dataclass 把字段收在一处', p:'散落的字典没人知道有哪些键。<code>@dataclass</code> 自动生成 <code>__init__</code>、<code>__repr__</code>，字段和类型一眼可见。', code:'from dataclasses import dataclass\n@dataclass\nclass Order:\n    order_no: str\n    qty: int\n    price: float\n    def total(self) -> float:\n        return round(self.qty * self.price, 2)\nprint(Order("SO-1", 3, 75.5))' },
+    { h:'类型注解是文档，不是运行时检查', p:'<code>def f(o: Order) -> str</code> 不会阻止你传错类型，但编辑器、mypy 和三个月后的你能看懂。', code:'def format_order(o: Order) -> str:\n    return f"{o.order_no}: {o.total():.2f}"\nprint(format_order.__annotations__)' },
+    { h:'函数短、职责单一才好测', p:'把「读数据 / 算逻辑 / 格式化 / 写文件」拆开，每一块都能单独写测试；塞成一个大函数就只能靠手点。', code:'from dataclasses import fields\nprint([f.name for f in fields(Order)])' }
+  ],
+
+  /* ---------- 第十一章：交付之门 ---------- */
+  '11-1':[
+    { h:'unittest 是标准库，不用装', p:'<code>import unittest</code> 就能写测试。类名随便，方法必须以 <code>test_</code> 开头才会被收集。', code:'import unittest\ndef add(a, b):\n    return a + b\nclass TestAdd(unittest.TestCase):\n    def test_basic(self):\n        self.assertEqual(add(2, 3), 5)\nprint(unittest.TestLoader().loadTestsFromTestCase(TestAdd).countTestCases())' },
+    { h:'断言要覆盖边界与空值', p:'只测「正常输入」等于没测。空字符串、0、None、大小写混合，才是真正会出事的地方。', code:'import unittest\ndef norm(s):\n    return s.strip().lower()\nclass TestNorm(unittest.TestCase):\n    def test_space(self): self.assertEqual(norm("  Ann "), "ann")\n    def test_empty(self): self.assertEqual(norm(""), "")' },
+    { h:'CI 里一条命令就能跑', p:'<code>python -m unittest discover -s tests -v</code> 会收集所有测试。测试失败时进程返回非零，流水线自然变红。', code:'import unittest, io\nr = unittest.TextTestRunner(stream=io.StringIO()).run(\n    unittest.TestLoader().loadTestsFromTestCase(TestNorm))\nprint("通过:", r.wasSuccessful())' }
+  ],
+  '11-2':[
+    { h:'退出码是给机器看的结论', p:'0 = 成功，非 0 = 失败。调度器和 CI 只认这个，不读你打印的中文。参数非法应返回 2（命令行用法错误）。', code:'import argparse\np = argparse.ArgumentParser()\np.add_argument("--limit", type=int)\ntry:\n    a = p.parse_args(["--limit", "bad"])\nexcept SystemExit as e:\n    print("argparse 想退出，码:", e.code)' },
+    { h:'幂等：同样的参数，同样的结果', p:'重跑不能追加、不能依赖当前时间、不能留半份文件。<code>write_text</code> 覆盖写比 <code>open("a")</code> 安全得多。', code:'from pathlib import Path\np = Path("report.json")\np.write_text("{}", encoding="utf-8")\np.write_text("{}", encoding="utf-8")\nprint(p.read_text(encoding="utf-8"))' },
+    { h:'错误要给一句人话', p:'退出码给机器，错误信息给人。把「哪个参数错了、正确用法是什么」写清楚，别只抛一个 traceback。', code:'def run(argv=None):\n    try:\n        limit = int(argv[0]) if argv else 10\n    except (ValueError, IndexError):\n        return ("参数错误：limit 要是整数，用法 --limit N", 2)\n    return ("limit=%d" % limit, 0)\nprint(run(["bad"]))' }
+  ],
+  '11-3':[
+    { h:'main 守卫：导入不执行，直接运行才执行', p:'<code>if __name__ == "__main__":</code> 让文件既能被别的脚本 <code>import</code>（不做事），又能被命令行直接跑（做事）。', code:'def main(argv=None):\n    print("干活")\n    return 0\nif __name__ == "__main__":\n    main()' },
+    { h:'分层：入口 / 处理 / 落盘 / 日志', p:'<code>main()</code> 只管参数与流程，<code>process()</code> 只算业务，写文件单独一步。任何一层都能单独测。', code:'import json\nfrom pathlib import Path\ndef process(data, limit):\n    rows = data[:limit]\n    return {"orders": len(rows), "revenue": sum(r["amount"] for r in rows)}\nprint(process([{"amount": 100}, {"amount": 50}], 2))' },
+    { h:'交付清单', p:'能带参数跑、有 --help、有日志、有测试、失败有非零退出码、可重复运行、有 README 和 requirements.txt——这才是一个「脚本」而不是一段代码。', code:'import argparse\np = argparse.ArgumentParser(description="每日渠道报表")\np.add_argument("--input", required=True)\np.add_argument("--output", required=True)\np.add_argument("--limit", type=int, default=10)\nprint(p.format_help()[:120])' }
+  ],
+
   '1-1':[
     { h:'print() 是函数，不是命令', p:'括号里放什么，屏幕就打印什么。<b>字符串</b>要加引号，<b>数字</b>不用。', code:'print(2026)\nprint("Hello, Python")' },
     { h:'引号决定类型，也决定结果', p:'同样几个字符，加引号是文字，不加引号是算式。这是学 Python 的第一道分水岭。', code:'print(3 + 4)\nprint("3 + 4")' },
@@ -3038,6 +3284,249 @@ window.addEventListener('resize', () => {
 
 // 首次进入给个热身提示
 window.addEventListener('error', e => console.warn('[pyquest]', e.message));
+
+/* =========================================================
+   企业 Python 开发：岗位知识库 / 真工具实操 / 交付链
+   前 32 关教「写一段能跑的代码」，这一层补「写一个能交付的脚本」。
+   ========================================================= */
+
+const PQ_SELF_KEY = 'pyquest.toolkits.self';
+
+const LIBRARY_ENTRIES = [
+  { id:'script-vs-snippet', group:'脚本基础', title:'脚本不是代码段', min:8,
+    summary:'浏览器里点「运行」是你在调它；企业里是调度器、CI、同事在调它。入口、参数、退出码，一样都不能少。',
+    points:['**入口**：把逻辑放进 main(argv)，模块导入时不执行业务，直接运行才执行。','**参数**：配置来自命令行 / 环境变量，不写死在代码里；带 --help。','**退出码**：0 成功、非 0 失败；参数用法错一般返回 2。','**幂等**：同样参数重跑两次结果一致，覆盖写而不是追加写。'],
+    traps:['在模块顶层直接跑业务逻辑，被 import 时顺手把文件写了。','用 sys.exit() 散落在库函数里，测试没法直接调用。'],
+    practice:'10-1 / 11-2 / 11-3', link:'toolkits/cli/daily_report.py' },
+  { id:'venv', group:'工程环境', title:'虚拟环境与依赖', min:9,
+    summary:'「我机器上是好的」多半是环境没锁。每个项目一个 venv，依赖写进文件，版本要可复现。',
+    points:['**venv**：python -m venv .venv，激活后再 pip install；别装到全局。','**requirements.txt**：pip freeze > requirements.txt 会带上间接依赖，适合锁死；手写顶层依赖更可读。','**pyproject.toml**：现代项目把元数据、依赖、工具配置放一处，pip install -e . 可编辑安装。','**锁版本**：CI 与生产用同一份依赖；升级单独一次提交，别和业务逻辑混在一起。'],
+    traps:['把 .venv 提交进 Git（几万个文件）。','requirements 里不写版本，半年后装到不兼容的新版。'],
+    practice:'10-1 / 11-3', link:'toolkits/venv/requirements.txt' },
+  { id:'structure', group:'工程环境', title:'项目结构与模块化', min:9,
+    summary:'一个 500 行的脚本没人敢改。按职责拆包，导入关系清楚，测试才能单块写。',
+    points:['**分层**：cli.py（参数）/ core.py（业务）/ io.py（读写）/ logging_conf.py（日志）各管一段。','**包**：目录里放 __init__.py；包内用相对导入（from .core import process），跨包用绝对导入。','**main 守卫**：if __name__ == "__main__": 里只调 main()，不写业务。','**别循环导入**：A 引 B、B 又引 A，常见解法是把公共部分抽到第三块。'],
+    traps:['脚本名和库名撞车（自己写了个 json.py，标准库全乱）。','从任意目录跑脚本就找不到模块，因为依赖当前工作目录。'],
+    practice:'10-4 / 11-3', link:'toolkits/packaging/README.md' },
+  { id:'config', group:'工程环境', title:'配置与密钥', min:7,
+    summary:'路径、账号、token、环境开关都不该硬编码，更不该进 Git。',
+    points:['**环境变量**：os.environ.get("REPORT_OUT", "out/report.json") 给默认值。','**.env 只放本机**：加进 .gitignore，提交一份 .env.example 说明有哪些键。','**配置优先级**：命令行参数 > 环境变量 > 配置文件 > 代码默认值。','**日志里别打 token**：脱敏再输出；报错信息也要小心。'],
+    traps:['把生产数据库密码写进脚本并提交。','用相对路径拼输出目录，换个工作目录就写丢。'],
+    practice:'11-3', link:'toolkits/cli/daily_report.py' },
+  { id:'errors', group:'可维护性', title:'异常、日志与排错', min:9,
+    summary:'脚本半夜挂了，你只能靠日志复盘。print 不是日志，裸 except 更不是。',
+    points:['**logging**：logger = logging.getLogger(__name__)，按级别记录，用 %s 懒格式化。','**自定义异常**：把可预期的业务错误（除零、缺列、文件不存在）变成明确类型。','**只捕能处理的**：except ValueError 可以，except Exception: pass 会把真 bug 吞掉。','**traceback**：logger.exception 带堆栈；面向用户的错误给一句人话和正确用法。'],
+    traps:['每个函数都 try/except 一遍，最后谁也不知道错在哪。','日志级别全是 INFO，出事时翻不出关键那几行。'],
+    practice:'10-3 / 11-3', link:'toolkits/cli/logging_config.py' },
+  { id:'testing', group:'可维护性', title:'测试与覆盖率门禁', min:10,
+    summary:'改一行代码怎么知道没把别处改坏？靠测试，不靠「我看着没问题」。',
+    points:['**unittest 是标准库**：python -m unittest discover -s tests -v，零依赖就能跑。','**pytest 更省事**：参数化、fixture、失败输出更清楚；CI 里一条命令。','**测边界与异常**：空输入、0、None、坏数据、文件不存在，比正常路径更容易出事。','**覆盖率门禁**：coverage run -m pytest && coverage report --fail-under=80，低于阈值让 CI 红。'],
+    traps:['只测正常输入，边界全漏。','测试里连真实数据库 / 生产接口，跑一次改一次数据。'],
+    practice:'11-1', link:'toolkits/testing/test_channel_report.py' },
+  { id:'quality', group:'可维护性', title:'类型、风格与静态检查', min:8,
+    summary:'能跑不等于能维护。类型注解、格式化和 lint 让代码在团队里活得住。',
+    points:['**type hints**：函数签名即文档；dataclass 把字段收在一处。','**ruff**：一条命令查未用变量、未定义名、危险写法；比人眼稳。','**black**：格式化交给工具，Code Review 不再争空格。','**pre-commit**：提交前自动跑 lint / 格式，问题不进仓库。'],
+    traps:['把类型注解当运行时校验（它不会阻止你传错类型）。','CI 里只跑格式化不跑测试，看着绿其实没验过。'],
+    practice:'10-4 / 11-1', link:'toolkits/linting/README.md' },
+  { id:'delivery', group:'协作与交付', title:'Git、CI 与打包', min:9,
+    summary:'一个脚本要交给别人，得有提交历史、自动回归、能重复安装和一条清楚的启动命令。',
+    points:['**Git**：一次改动一次提交，信息写业务原因；用 bisect 定位哪次改坏。','**CI**：push 即跑 lint + pytest + 覆盖率门禁，失败阻断合并。','**打包**：pyproject.toml + __main__.py，让 python -m yourpkg 能跑。','**README**：安装、一条最小运行命令、参数说明、出错怎么办，四样齐。'],
+    traps:['把 notebook 直接进 Git，JSON diff 没人看得懂。','CI 只在主分支跑，PR 阶段发现问题太晚。'],
+    practice:'11-1 / 11-2 / 11-3', link:'toolkits/ci/python-ci.yml' }
+];
+
+const TOOLKIT_ITEMS = [
+  { id:'venv', name:'venv / pip / 依赖', tag:'本机可真跑',
+    points:['python -m venv .venv → 激活 → pip install -r requirements.txt','requirements.txt 锁版本，pyproject.toml 放元数据与工具配置','pip install -e . 可编辑安装，改代码不用重装'],
+    files:[['操作手册','toolkits/venv/README.md'],['requirements.txt','toolkits/venv/requirements.txt'],['pyproject.toml','toolkits/venv/pyproject.toml']],
+    judge:'干净 venv 里一条命令装好依赖并能 import 自己的包' },
+  { id:'testing', name:'unittest / pytest / coverage', tag:'真跑测试',
+    points:['unittest 零依赖；pytest 参数化 + fixture 更省事','coverage run -m pytest && coverage report --fail-under=80','测试要覆盖空值、异常与文件不存在'],
+    files:[['操作手册','toolkits/testing/README.md'],['test_channel_report.py','toolkits/testing/test_channel_report.py'],['pytest.ini','toolkits/testing/pytest.ini']],
+    judge:'故意改错函数能让测试红，覆盖率低于阈值时 CI 失败' },
+  { id:'linting', name:'ruff / black / pre-commit', tag:'静态检查',
+    points:['ruff check . 查未用变量、未定义名与危险写法','black --check . 统一格式，Review 不再争空格','pre-commit 在提交前自动跑检查'],
+    files:[['操作手册','toolkits/linting/README.md'],['.ruff.toml','toolkits/linting/.ruff.toml'],['.pre-commit-config.yaml','toolkits/linting/.pre-commit-config.yaml']],
+    judge:'故意留一个未用 import，提交前被钩子拦下' },
+  { id:'cli', name:'CLI 脚本 / logging', tag:'真实脚本',
+    points:['argparse 子命令、--help、默认值与退出码','logging 分级、文件轮转、traceback 留痕','幂等：覆盖写、不依赖当前时间、可回填'],
+    files:[['操作手册','toolkits/cli/README.md'],['daily_report.py','toolkits/cli/daily_report.py'],['logging_config.py','toolkits/cli/logging_config.py']],
+    judge:'同参数跑两次输出一致，文件不存在返回退出码 2 并留下日志' },
+  { id:'ci', name:'Git / GitHub Actions', tag:'协作流水线',
+    points:['push / PR 触发 lint + pytest + 覆盖率门禁','失败阻断合并，产物（报告 / HTML）存档','git bisect 定位哪次提交改坏了'],
+    files:[['操作手册','toolkits/ci/README.md'],['python-ci.yml','toolkits/ci/python-ci.yml'],['Git 手册','toolkits/git/README.md']],
+    judge:'故意让测试失败，CI 变红且 PR 被拦下' },
+  { id:'packaging', name:'打包与交付清单', tag:'可交给别人',
+    points:['pyproject.toml + __main__.py，python -m yourpkg 能跑','Makefile 收起常用命令，README 写清最小运行步骤','交付清单：参数 / 日志 / 测试 / 退出码 / 幂等 / 依赖'],
+    files:[['操作手册','toolkits/packaging/README.md'],['Makefile','toolkits/packaging/Makefile'],['交付清单','toolkits/packaging/DELIVERY_CHECKLIST.md'],['实操包总说明','toolkits/README.md']],
+    judge:'换一台干净机器，照 README 三条命令能跑通并拿到报告' }
+];
+
+const PIPELINE_STEPS = [
+  { id:'10-1', no:'01', name:'参数入口', out:'build_parser()：--channel / --limit / --verbose' },
+  { id:'10-2', no:'02', name:'文件与编码', out:'save/load_report()：pathlib + utf-8 + ensure_ascii=False' },
+  { id:'10-3', no:'03', name:'异常与日志', out:'CalcError + safe_div + compute + logging.warning' },
+  { id:'10-4', no:'04', name:'类型与结构', out:'@dataclass Order + 带注解的 format_order' },
+  { id:'11-1', no:'05', name:'自动化测试', out:'normalize_name + TestNormalize（3 个用例真跑）' },
+  { id:'11-2', no:'06', name:'退出码与幂等', out:'run()：正常 0 / 参数错 2 / 重跑结果一致' },
+  { id:'11-3', no:'07', name:'可交付脚本', out:'BOSS：入口 + 处理 + 落盘 + 日志 + 退出码' }
+];
+
+function pqEsc(s){
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function pqRich(s){ return pqEsc(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>'); }
+
+function pqSelf(){ try { return JSON.parse(localStorage.getItem(PQ_SELF_KEY) || '{}'); } catch(e){ return {}; } }
+
+const PQ_CARD = 'border:1px solid var(--line);border-radius:10px;padding:15px;background:var(--panel)';
+const PQ_BTN = 'font:12px/1.4 inherit;padding:5px 9px;border-radius:6px;border:1px solid var(--line2);background:transparent;color:var(--ink);text-decoration:none;cursor:pointer;white-space:nowrap;flex-shrink:0';
+
+function renderViewTabs(){
+  const box = document.getElementById('viewTabs');
+  if(!box) return;
+  const tabs = [['levels','闯关'],['library','知识库'],['toolkits','真工具实操'],['pipeline','交付链']];
+  box.innerHTML = tabs.map(([k,label]) =>
+    '<button type="button" data-view="'+k+'" style="'+PQ_BTN+'">'+label+'</button>').join('');
+  box.querySelectorAll('button').forEach(b => b.addEventListener('click', () => pqSwitch(b.dataset.view)));
+}
+
+function pqSwitch(v){
+  const layout = document.querySelector('.layout');
+  const extras = document.getElementById('extras');
+  const isLevels = v === 'levels';
+  if(layout){ layout.hidden = !isLevels; layout.style.display = isLevels ? '' : 'none'; }
+  if(extras){ extras.hidden = isLevels; extras.style.display = isLevels ? 'none' : 'block'; }
+  ['library','toolkits','pipeline'].forEach(k => {
+    const p = document.getElementById('pane-' + k);
+    if(p) p.hidden = (k !== v);
+  });
+  document.querySelectorAll('#viewTabs button').forEach(b => {
+    const on = b.dataset.view === v;
+    b.style.background = on ? 'var(--yellow)' : 'transparent';
+    b.style.color = on ? '#10151c' : 'var(--ink2)';
+    b.style.borderColor = on ? 'var(--yellow)' : 'var(--line2)';
+    b.setAttribute('aria-current', on ? 'true' : 'false');
+  });
+  if(v === 'pipeline') renderPipelinePane();
+  if(v === 'toolkits') renderToolkitsPane();
+  window.scrollTo({ top:0, behavior:'smooth' });
+}
+
+function renderLibraryPane(){
+  const pane = document.getElementById('pane-library');
+  if(!pane) return;
+  pane.innerHTML =
+    '<p style="font:600 11px/1 monospace;letter-spacing:.15em;color:var(--ink3)">ANALYST · ENGINEER HANDBOOK</p>' +
+    '<h2 style="font-size:24px;margin:8px 0 6px">上班之后，没人再给你题目</h2>' +
+    '<p style="color:var(--ink2);margin:0 0 18px;max-width:720px">前 32 关教的是「写一段能跑的代码」。这 8 篇补的是企业里把代码变成脚本、把脚本变成能交付的东西所必需的工程能力。每篇标了对应关卡与配套文件。</p>' +
+    '<div style="display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(300px,1fr))">' +
+    LIBRARY_ENTRIES.map(e =>
+      '<article style="'+PQ_CARD+'">' +
+      '<p style="font:600 10px/1 monospace;letter-spacing:.12em;color:var(--ink3)">'+pqEsc(e.group)+' · '+e.min+' 分钟 · '+pqEsc(e.practice)+'</p>' +
+      '<h3 style="font-size:17px;margin:8px 0 6px;color:var(--yellow)">'+pqEsc(e.title)+'</h3>' +
+      '<p style="font-size:13px;color:var(--ink2);margin:0 0 10px">'+pqRich(e.summary)+'</p>' +
+      '<ul style="font-size:12.5px;line-height:1.75;padding-left:18px;margin:0 0 10px">'+e.points.map(p => '<li>'+pqRich(p)+'</li>').join('')+'</ul>' +
+      '<p style="font-size:12px;color:var(--ink3);margin:0 0 10px"><b>常见坑：</b>'+e.traps.map(pqEsc).join('；')+'</p>' +
+      '<a style="'+PQ_BTN+';display:inline-block" href="'+e.link+'" download>配套文件 ↓</a>' +
+      '</article>').join('') + '</div>';
+}
+
+function renderToolkitsPane(){
+  const pane = document.getElementById('pane-toolkits');
+  if(!pane) return;
+  const self = pqSelf();
+  const done = TOOLKIT_ITEMS.filter(t => self[t.id]).length;
+  pane.innerHTML =
+    '<p style="font:600 11px/1 monospace;letter-spacing:.15em;color:var(--ink3)">TOOLKITS · REAL SOFTWARE</p>' +
+    '<h2 style="font-size:24px;margin:8px 0 6px">把真工具装起来用一遍</h2>' +
+    '<p style="color:var(--ink2);margin:0 0 14px;max-width:720px">PyQuest 在浏览器里跑 Python，装不了 venv、pytest、ruff、Airflow。这里给逐步手册和真实配置文件，照着在自己机器上跑通；勾选是<b>自评</b>，只存 localStorage，不写通关记录、不加 XP。</p>' +
+    '<div style="display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(280px,1fr))">' +
+    TOOLKIT_ITEMS.map(t =>
+      '<article style="'+PQ_CARD+'">' +
+      '<p style="font:600 10px/1 monospace;letter-spacing:.12em;color:var(--ink3)">'+pqEsc(t.tag)+'</p>' +
+      '<h3 style="font-size:17px;margin:7px 0 8px;color:var(--yellow)">'+pqEsc(t.name)+'</h3>' +
+      '<ul style="font-size:12.5px;line-height:1.7;padding-left:18px;margin:0 0 9px">'+t.points.map(p => '<li>'+pqEsc(p)+'</li>').join('')+'</ul>' +
+      '<p style="font-size:12px;color:var(--ink3);margin:0 0 9px"><b>跑通判据：</b>'+pqEsc(t.judge)+'</p>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:6px">'+t.files.map(([label,path]) =>
+        '<a style="'+PQ_BTN+'" href="'+path+'" download>'+pqEsc(label)+' ↓</a>').join('')+'</div>' +
+      '</article>').join('') + '</div>' +
+    '<div id="pq-self" style="margin-top:18px;'+PQ_CARD+'">' +
+      '<h3 style="font-size:16px;margin:0 0 6px">跑通自评 · '+done+'/'+TOOLKIT_ITEMS.length+'</h3>' +
+      '<p style="font-size:12px;color:var(--ink3);margin:0 0 8px">勾选只存本机，不冒充通关产物。真工具要你自己装，留下的报告 / 测试输出 / 提交历史才是证据。</p>' +
+      TOOLKIT_ITEMS.map(t => '<label style="display:flex;gap:8px;align-items:flex-start;font-size:12.5px;padding:7px 0;border-top:1px solid var(--line);cursor:pointer">' +
+        '<input type="checkbox" data-tk="'+t.id+'" '+(self[t.id]?'checked':'')+' style="margin-top:3px"><span><b>'+pqEsc(t.name)+'</b>：'+pqEsc(t.judge)+'</span></label>').join('') +
+      '<button type="button" id="pq-self-reset" style="'+PQ_BTN+';margin-top:10px">清空自评</button></div>';
+}
+
+function renderPipelinePane(){
+  const pane = document.getElementById('pane-pipeline');
+  if(!pane) return;
+  const cleared = (typeof state !== 'undefined' && state.cleared) ? state.cleared : {};
+  const done = PIPELINE_STEPS.filter(s => cleared[s.id]).length;
+  const pct = Math.round(done / PIPELINE_STEPS.length * 100);
+  pane.innerHTML =
+    '<p style="font:600 11px/1 monospace;letter-spacing:.15em;color:var(--ink3)">DELIVERY CHAIN · 7 STEPS</p>' +
+    '<h2 style="font-size:24px;margin:8px 0 6px">七个练习，一个能交付的脚本</h2>' +
+    '<p style="color:var(--ink2);margin:0 0 14px;max-width:720px">把工程化七关串成一条链。状态直接读你的通关记录，不是重新算的；导出的清单可以当作品附件。</p>' +
+    '<div style="height:6px;background:var(--line);border-radius:4px;overflow:hidden;margin:0 0 6px"><i style="display:block;height:100%;width:'+pct+'%;background:var(--yellow)"></i></div>' +
+    '<p style="font:12px/1.6 monospace;color:var(--ink3);margin:0 0 16px">'+done+' / '+PIPELINE_STEPS.length+' 步完成 · '+pct+'%</p>' +
+    PIPELINE_STEPS.map(s =>
+      '<article style="'+PQ_CARD+';margin-bottom:8px;display:flex;gap:12px;align-items:flex-start'+(cleared[s.id]?';border-color:var(--yellow)':'')+'">' +
+      '<span style="font:600 12px/1 monospace;background:var(--panel2);border:1px solid var(--line2);padding:6px 8px;border-radius:5px;color:var(--yellow)">'+s.no+'</span>' +
+      '<div style="flex:1"><h3 style="font-size:15px;margin:0 0 4px">'+pqEsc(s.name)+'<span style="font:11px/1 monospace;color:var(--ink3);margin-left:8px">'+s.id+'</span></h3>' +
+      '<p style="font-size:12.5px;color:var(--ink2);margin:0">'+pqEsc(s.out)+'</p></div>' +
+      '<span style="font:11px/1 monospace;color:'+(cleared[s.id]?'var(--yellow)':'var(--ink3)')+'">'+(cleared[s.id]?'✓ 已完成':'待完成')+'</span></article>').join('') +
+    '<button type="button" id="pq-export" style="'+PQ_BTN+';margin-top:12px;background:var(--yellow);color:#10151c;border-color:var(--yellow)">导出交付清单 HTML ↧</button>';
+  const btn = document.getElementById('pq-export');
+  if(btn) btn.addEventListener('click', pqExportChain);
+}
+
+function pqExportChain(){
+  const cleared = (typeof state !== 'undefined' && state.cleared) ? state.cleared : {};
+  const done = PIPELINE_STEPS.filter(s => cleared[s.id]).length;
+  const rows = PIPELINE_STEPS.map(s =>
+    '<section style="border-top:1px solid #d8d2c4;padding:12px 0"><h2 style="font-size:15px;margin:0 0 5px">' +
+    s.no + ' · ' + pqEsc(s.name) + ' <span style="font:11px monospace;color:'+(cleared[s.id]?'#3d6b3a':'#8b8578')+'">' +
+    (cleared[s.id]?'已完成':'待完成')+'</span></h2><p style="margin:0;font:12px/1.7 monospace">'+pqEsc(s.out)+'</p></section>').join('');
+  const html = '<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>PyQuest · 工程交付清单</title>' +
+    '<style>body{max-width:780px;margin:44px auto;padding:0 22px;color:#172018;background:#f7f5ef;font:15px/1.75 "Segoe UI","Microsoft YaHei",sans-serif}' +
+    'h1{font-size:27px;margin:6px 0 8px}.k{font:600 10px monospace;letter-spacing:.2em;color:#6b7269}.m{font:12px monospace;color:#6b7269}</style></head><body>' +
+    '<p class="k">PYQUEST · ENGINEERING DELIVERY</p><h1>从代码段到可交付脚本</h1>' +
+    '<p class="m">生成时间：'+new Date().toLocaleString('zh-CN')+' · 完成 '+done+' / '+PIPELINE_STEPS.length+' 步 · 状态来自本机通关记录</p>' +
+    '<div style="height:6px;background:#e5dfd2;border-radius:3px;margin:16px 0 22px"><i style="display:block;height:100%;width:'+Math.round(done/PIPELINE_STEPS.length*100)+'%;background:#172018"></i></div>' +
+    rows + '<p class="m" style="margin-top:26px;border-top:2px solid #172018;padding-top:12px">' +
+    '说明：本清单记录 PyQuest 工程化七关的通关状态。真工具（venv / pytest / ruff / CI）需要在自己机器上跑通，' +
+    '导出的测试报告、日志与提交历史才是完整证据。</p></body></html>';
+  const url = URL.createObjectURL(new Blob([html], {type:'text/html;charset=utf-8'}));
+  const a = document.createElement('a');
+  a.href = url; a.download = 'PyQuest-工程交付清单.html';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+function bindExtras(){
+  renderViewTabs();
+  renderLibraryPane();
+  renderToolkitsPane();
+  renderPipelinePane();
+  pqSwitch('levels');
+  document.addEventListener('change', e => {
+    const input = e.target.closest && e.target.closest('[data-tk]');
+    if(!input) return;
+    const self = pqSelf();
+    self[input.dataset.tk] = input.checked;
+    try { localStorage.setItem(PQ_SELF_KEY, JSON.stringify(self)); } catch(err) {}
+    renderToolkitsPane();
+  });
+  document.addEventListener('click', e => {
+    if(!e.target.closest || !e.target.closest('#pq-self-reset')) return;
+    try { localStorage.removeItem(PQ_SELF_KEY); } catch(err) {}
+    renderToolkitsPane();
+  });
+}
+
+bindExtras();
 </script>
 </body>
 </html>
