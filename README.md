@@ -4,6 +4,8 @@
 
 另有**岗位知识库 8 篇**与**真工具实操包**（venv / pytest / ruff / CI / 打包的逐步手册与真实配置文件），补的是「写代码片段」和「写能交付的脚本」之间的距离。
 
+还有一份**「企业第一周」作业包 `assignment/`**：给你一份工单、一份脏数据和一个空目录，用 VS Code 从零写出一个能让调度器每天跑的渠道日报脚本，四关累加（写脚本 → 上测试 → 抗故障 → 交给别人）。`check.py` 在本机真跑你的代码逐条判，不靠自评；详见下面专门一节。
+
 **没有后端、没有构建步骤、没有网络依赖。** 代码在你本机的 Python 运行时里真跑，判题是真的执行结果，不是字符串匹配。
 
 ---
@@ -31,12 +33,19 @@ python serve.py
 ## 目录里都有什么
 
 ```
-index.html          整个游戏（HTML + CSS + JS 全内联，含 39 关 / 理论卡 / 知识库 / 工具台 / 交付链）
+index.html          整个游戏（HTML + CSS + JS 全内联，含 39 关 / 理论卡 / 知识库 / 工具台 / 交付链 / 第一周作业）
 serve.py            本地静态服务器，带正确的 MIME、缓存策略与静态白名单
 启动游戏.bat        Windows 启动入口
 package.json        只有 devDependencies，运行时零依赖
 pyodide/            Python 运行时 + 各库的 wheel（约 72MB）
 toolkits/           真工具实操包：6 组逐步手册 + 19 个真实配置/脚本文件
+assignment/         企业第一周作业包
+  README.md           总说明：场景、四阶段、怎么开始
+  TASKS/              四份任务书（工单原文 / 要交什么 / 怎么判）
+  workspace/          空工作区：只有说明和 data/，代码由学习者自己写
+  check.py            本机真跑验收（21 条检查）
+  solution/           完整参考解 + 交付文件示例，卡住再看
+  DELIVERY.md         交付记录模板
 data/               关卡用的数据文件
   orders.csv          2400 条合成电商订单
   products.csv        40 个商品（成本、库存、上架时间）
@@ -47,6 +56,8 @@ tests/
   solutions.mjs       参考解和反例的代码
   e2e.mjs             浏览器端端到端测试
   e2e_engineering.mjs 工程化扩展的浏览器验收（新视图 / 下载 / 自评 / 交付链）
+  e2e_assignment.mjs  作业包浏览器验收（下载 / 自评隔离 / 白名单 / 路径穿越）
+  check_assignment.py 验收脚本的自检：参考解全绿、六种破坏各被拦下
 ```
 
 ---
@@ -86,13 +97,14 @@ tests/
 
 前 32 关回答「这段 Python 会不会写」，后面这层回答「写出来的东西能不能交给别人跑」。
 
-**三个新视图**（顶栏切换，不影响闯关进度）：
+**四个新视图**（顶栏切换，不影响闯关进度）：
 
 | 视图 | 内容 |
 | --- | --- |
 | 知识库 | 8 篇岗位内容：脚本与代码段、venv 与依赖、项目结构、配置与密钥、异常与日志、测试与覆盖率、类型与静态检查、Git/CI 与打包。每篇标了对应关卡与配套文件 |
 | 真工具实操 | 6 组工具的逐步手册 + 19 个真实文件下载（`requirements.txt`、`pyproject.toml`、`pytest.ini`、`.ruff.toml`、`.pre-commit-config.yaml`、`daily_report.py`、`logging_config.py`、`python-ci.yml`、`Makefile`、交付清单等）。勾选是**自评**，只存 localStorage，不写通关记录、不加 XP |
 | 交付链 | 把工程化七关串成一条链，状态直接读 `state.cleared`，可导出独立 HTML 清单当作品附件 |
+| 第一周作业 | 一份工单、四关任务书、本机验收脚本与参考解的下载入口；自评同样只存 localStorage，真正判分在本机 `check.py` |
 
 **七关真跑什么**：`10-1` argparse 解析、`10-2` pathlib + UTF-8 往返、`10-3` 自定义异常 + logging.warning 真被捕获、`10-4` dataclass 与返回注解、`11-1` unittest 真跑你写的测试类、`11-2` 退出码 0/2 与幂等、`11-3` BOSS 把入口/处理/落盘/日志/退出码组装起来。参考解与 7 个反例都在 `tests/solutions.mjs`，由 `run_levels.mjs` 在**项目自带的 Pyodide** 里真跑验证。
 
@@ -104,9 +116,44 @@ python toolkits/cli/daily_report.py --input data/orders.csv --output out/report.
 python -m unittest discover -s toolkits/testing -p "test_*.py" -v
 ```
 
-**静态白名单**：`serve.py` 只放行游戏运行所需后缀；`.md/.py/.toml/.ini/.yaml/.yml` 等**仅在 `toolkits/` 目录内**放行，`Makefile` 按文件名特例放行。根目录 `serve.py`、`README.md`、`tests/`、`.git` 一律 404，目录列表关闭。
+**静态白名单**：`serve.py` 只放行游戏运行所需后缀；`.md/.py/.toml/.ini/.yaml/.yml` 等**仅在 `toolkits/` 与 `assignment/` 目录内**放行，`Makefile` / `.gitignore` 按文件名特例放行，`.json` 只给 `pyodide/pyodide-lock.json`。判断后缀前先做 `..` 与 `realpath + commonpath` 校验，堵住 `/toolkits/../serve.py` 这类穿越。根目录 `serve.py`、`README.md`、`package.json`、`tests/`、`.git` 一律 404，目录列表关闭。
 
 **边界，说清楚**：PyQuest 在浏览器里跑的是 Python 代码片段，**装不了 venv、pytest、ruff、pre-commit、CI**。这些工具的手册与配置文件已做静态校验，`daily_report.py` 与 `test_channel_report.py` 在本机真跑过（CLI 退出码 0/2、5 项 unittest 通过）；其余要你在自己的环境里按手册跑通，留下的测试报告、日志与提交历史才是完整证据。
+
+---
+
+## 企业第一周作业包（`assignment/`）
+
+前 39 关是「给你题目，写一段能跑的代码」；`toolkits/` 是「照着手册把真工具装起来」。这一份是**工单**：一份需求、一份脏数据、一个空目录，交付一个别人敢让调度器每天跑的脚本。码在你本机 VS Code 写，平台不替你判。
+
+| 关卡 | 时点 | 交付 | 企业里对应的动作 |
+| --- | --- | --- | --- |
+| TASK 01 | 周一上午 | `daily_report.py` | 把含糊的需求问成口径，写参数入口与输出契约 |
+| TASK 02 | 周一下午 | `test_daily_report.py` | 证明口径没写错，让以后改代码的人立刻知道改坏了 |
+| TASK 03 | 周二 | 异常 / 日志 / 退出码 / 幂等 | 让无人值守的调度器敢调，补跑不翻倍 |
+| TASK 04 | 周三～周五 | README / Makefile / 依赖 / Git 历史 / 交付记录 | 换个人接得住，一次改动一次提交 |
+
+四关累加，不是四个小脚本；TASK 04 验收会连带重跑前三关。
+
+```bash
+cd assignment/workspace
+code .                        # 用 VS Code 打开空目录
+python -m venv .venv
+cd ..
+python check.py --task 1      # 边写边验；全跑就是 python check.py
+```
+
+**`check.py` 真的执行你写的代码**（21 条检查，退出码 0 / 1）：
+
+- 用两份不同数据跑 CLI，逐个数比对 JSON —— 写死答案过不了
+- 真跑 `unittest`，并把你的模块里 `"paid"` 改坏一次再跑，**测试必须变红**（变异测试，证明用例在守口径）
+- 造「文件不存在 / 金额非数字 / CSV 缺列」三种故障，查退出码 2 与可读错误信息
+- 同参数跑两次比对输出字节（幂等），`import` 一次查有没有副作用
+- 查真实 `git log` 提交次数、README / Makefile / `.gitignore` / 交付记录的内容
+
+`solution/` 是完整可跑的参考解（21/21 全绿），标注「卡住 20 分钟再看」。`tests/check_assignment.py` 是**验收脚本的自检**：复制参考解到临时工作区应全绿；写死答案、假测试、追加写、`--help` 返回 2、删掉 `.git` 这六种破坏，都必须被对应检查拦下。这样能证明 `check.py` 不是数文件存在就给过。
+
+**边界**：不模拟真实调度器、不接数据库、不联网上传你的代码；站内勾选是自评，不写通关记录、不加 XP。`assignment/workspace/` 里学生写的代码、测试和自建 `.git` 都被根 `.gitignore` 排除，不进 PyQuest 仓库。
 
 ---
 
@@ -125,6 +172,10 @@ npm install
 python serve.py                         # 另开一个终端，默认 8770
 node tests/e2e.mjs
 node tests/e2e_engineering.mjs           # 工程化扩展的新视图验收
+node tests/e2e_assignment.mjs            # 作业包：下载 / 自评隔离 / 白名单 / 路径穿越
+
+# 作业验收脚本的自检（不需要浏览器，约 30 秒）
+python tests/check_assignment.py
 ```
 
 `package.json` 里只有 `devDependencies: playwright-core` 一项，游戏本身零依赖。
@@ -172,6 +223,7 @@ node tests/e2e_engineering.mjs           # 工程化扩展的新视图验收
 - 进度存在浏览器 localStorage 里，没有云同步。换设备或换浏览器时，用顶栏「⋯」→「导出进度」存成 JSON，在新环境里「导入进度」即可。
 - 进度是按**网址**存的。`serve.py` 端口从 8770 往后找，如果 8770 被占用而挪到 8771，浏览器会当成另一个站点，进度看着像丢了——关掉占用的那个实例再开即可。
 - 工程化扩展里的 venv / pytest / ruff / pre-commit / CI **不在浏览器里跑**：`toolkits/` 给的是逐步手册与真实配置文件，其中 `daily_report.py`（标准库 CLI）和 `test_channel_report.py`（5 项 unittest）已在本机真跑过，其余需要你在自己的环境里按手册跑通。页面里的自评勾选只存 localStorage，不写通关记录、不加 XP。
+- `assignment/` 的作业**必须在本机 VS Code 里做**：平台能下载任务书与验收脚本，但看不到你的工作区，也不会替你判分或收作业。`check.py` 只在本机执行、不联网；变异测试会在 `workspace/.mutant/` 临时复制并改坏你的模块，跑完立刻删除，不改动源文件。作业不模拟真实调度器、不接数据库、不发邮件。
 
 ---
 
