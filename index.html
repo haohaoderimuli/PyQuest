@@ -467,6 +467,7 @@
   <div id="pane-library" hidden></div>
   <div id="pane-toolkits" hidden></div>
   <div id="pane-pipeline" hidden></div>
+  <div id="pane-assignment" hidden></div>
 </section>
 
 <script>
@@ -3385,7 +3386,7 @@ const PQ_BTN = 'font:12px/1.4 inherit;padding:5px 9px;border-radius:6px;border:1
 function renderViewTabs(){
   const box = document.getElementById('viewTabs');
   if(!box) return;
-  const tabs = [['levels','闯关'],['library','知识库'],['toolkits','真工具实操'],['pipeline','交付链']];
+  const tabs = [['levels','闯关'],['library','知识库'],['toolkits','真工具实操'],['pipeline','交付链'],['assignment','第一周作业']];
   box.innerHTML = tabs.map(([k,label]) =>
     '<button type="button" data-view="'+k+'" style="'+PQ_BTN+'">'+label+'</button>').join('');
   box.querySelectorAll('button').forEach(b => b.addEventListener('click', () => pqSwitch(b.dataset.view)));
@@ -3397,7 +3398,7 @@ function pqSwitch(v){
   const isLevels = v === 'levels';
   if(layout){ layout.hidden = !isLevels; layout.style.display = isLevels ? '' : 'none'; }
   if(extras){ extras.hidden = isLevels; extras.style.display = isLevels ? 'none' : 'block'; }
-  ['library','toolkits','pipeline'].forEach(k => {
+  ['library','toolkits','pipeline','assignment'].forEach(k => {
     const p = document.getElementById('pane-' + k);
     if(p) p.hidden = (k !== v);
   });
@@ -3410,6 +3411,7 @@ function pqSwitch(v){
   });
   if(v === 'pipeline') renderPipelinePane();
   if(v === 'toolkits') renderToolkitsPane();
+  if(v === 'assignment') renderAssignmentPane();
   window.scrollTo({ top:0, behavior:'smooth' });
 }
 
@@ -3505,19 +3507,124 @@ function pqExportChain(){
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
+/* ---------- 企业第一周作业：一份工单、一个空目录、四关递进 ---------- */
+const PQ_ASG_KEY = 'pyquest.assignment.self';
+const ASSIGNMENT_TASKS = [
+  { id:'1', no:'01', when:'周一上午', title:'让脚本跑起来',
+    scenario:'组长只说了一句「从订单 CSV 出 report.json 给下游看板」。口径得你自己去问清楚，再写进代码。',
+    deliver:'daily_report.py · argparse 参数入口 · 固定 JSON 输出契约',
+    judge:'两份不同数据各跑一次，orders / revenue / channels 逐个数字比对（写死答案过不了）',
+    files:[['任务书 01','assignment/TASKS/01-first-script.md'],['样例数据','assignment/workspace/data/orders.csv']] },
+  { id:'2', no:'02', when:'周一下午', title:'给脚本上测试',
+    scenario:'「你怎么证明只算已支付没写错？」把读数据和算指标拆开，用 unittest 守住口径与边界。',
+    deliver:'test_daily_report.py · 至少 4 条用例，测 paid / 分组 / 空输入 / 坏数据',
+    judge:'真跑 unittest，并把你的模块改坏一次做变异测试，测试必须变红',
+    files:[['任务书 02','assignment/TASKS/02-tests.md']] },
+  { id:'3', no:'03', when:'周二', title:'让调度器敢调',
+    scenario:'昨晚调度器静默失败，看板拿到的是前天的旧文件。出错要暴露、重跑不许翻倍。',
+    deliver:'退出码 0 / 2 · logging 错误信息 · 幂等覆盖写 · main 守卫',
+    judge:'造三种故障查退出码，同参数跑两次比对字节，import 一次查有没有副作用',
+    files:[['任务书 03','assignment/TASKS/03-robust.md']] },
+  { id:'4', no:'04', when:'周三～周五', title:'交给别人',
+    scenario:'「周五之前整理一下，我要交给接手的人。」几乎不写代码，但这才是能跑和能交付的分界。',
+    deliver:'README / requirements.txt / Makefile / .gitignore / 真实 Git 历史 / 交付记录',
+    judge:'查 git log 提交次数与交付文件内容，并连带重跑前三关',
+    files:[['任务书 04','assignment/TASKS/04-delivery.md'],['交付清单模板','assignment/DELIVERY.md']] }
+];
+const ASSIGNMENT_SHARED = [
+  ['作业包总说明','assignment/README.md'],
+  ['本机验收脚本 check.py','assignment/check.py'],
+  ['工作区说明','assignment/workspace/README.md']
+];
+const ASSIGNMENT_SOLUTION = [
+  ['参考解说明（先看这个）','assignment/solution/ABOUT.md'],
+  ['daily_report.py','assignment/solution/daily_report.py'],
+  ['test_daily_report.py','assignment/solution/test_daily_report.py'],
+  ['项目 README 示例','assignment/solution/README.md'],
+  ['Makefile 示例','assignment/solution/Makefile']
+];
+
+function pqAsg(){ try { return JSON.parse(localStorage.getItem(PQ_ASG_KEY) || '{}'); } catch(e){ return {}; } }
+function pqLinks(list){
+  return list.map(([label, href]) =>
+    '<a style="'+PQ_BTN+'" href="'+href+'" download>'+pqEsc(label)+' ↓</a>').join('');
+}
+
+function renderAssignmentPane(){
+  const pane = document.getElementById('pane-assignment');
+  if(!pane) return;
+  const self = pqAsg();
+  const done = ASSIGNMENT_TASKS.filter(t => self[t.id]).length;
+  pane.innerHTML =
+    '<p style="font:600 11px/1 monospace;letter-spacing:.15em;color:var(--ink3)">ONBOARDING · WEEK ONE</p>' +
+    '<h2 style="font-size:24px;margin:8px 0 6px">一份工单，一个空目录</h2>' +
+    '<p style="color:var(--ink2);margin:0 0 16px;max-width:760px">前 39 关是「给你题目，写一段能跑的代码」。这里给你一份需求、一份脏数据和一个空目录，' +
+    '交付一个别人敢让调度器每天跑的脚本。<b>码在你本机 VS Code 里写，成绩也只在你本机判</b>：' +
+    '平台不替你验收，下面的勾选是自评，不写通关记录、不加 XP。</p>' +
+    '<div style="'+PQ_CARD+';margin-bottom:16px">' +
+      '<h3 style="font-size:15px;margin:0 0 8px">开始（在本机终端里，不是在这个网页里）</h3>' +
+      '<pre style="font:12px/1.7 monospace;background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:10px 12px;margin:0 0 10px;overflow-x:auto;color:var(--ink)">' +
+      'cd PyQuest/assignment/workspace\ncode .                      # 用 VS Code 打开这个空目录\npython -m venv .venv\ncd ..\npython check.py --task 1     # 边写边验</pre>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:6px">'+pqLinks(ASSIGNMENT_SHARED)+'</div>' +
+    '</div>' +
+    '<div style="display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(290px,1fr))">' +
+    ASSIGNMENT_TASKS.map(t =>
+      '<article style="'+PQ_CARD+'">' +
+      '<p style="font:600 10px/1 monospace;letter-spacing:.12em;color:var(--ink3)">TASK '+t.no+' · '+pqEsc(t.when)+'</p>' +
+      '<h3 style="font-size:17px;margin:7px 0 8px;color:var(--yellow)">'+pqEsc(t.title)+'</h3>' +
+      '<p style="font-size:12.5px;color:var(--ink2);margin:0 0 9px">'+pqEsc(t.scenario)+'</p>' +
+      '<p style="font-size:12px;color:var(--ink3);margin:0 0 7px"><b>要交：</b>'+pqEsc(t.deliver)+'</p>' +
+      '<p style="font-size:12px;color:var(--ink3);margin:0 0 10px"><b>怎么判：</b>'+pqEsc(t.judge)+'</p>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:6px">'+pqLinks(t.files)+'</div>' +
+      '</article>').join('') + '</div>' +
+    '<div style="'+PQ_CARD+';margin-top:16px">' +
+      '<h3 style="font-size:15px;margin:0 0 7px">验收不是看文件存在</h3>' +
+      '<p style="font-size:12.5px;line-height:1.8;color:var(--ink2);margin:0">check.py 会真的执行你写的脚本：' +
+      '换两份数据比对每个数字；真跑 unittest 并把你的模块改坏一次（变异测试）；' +
+      '造文件不存在 / 金额非数字 / CSV 缺列三种故障查退出码；跑两次比对输出字节；' +
+      'import 一次查副作用；最后查 Git 提交历史。逐条 PASS / FAIL，退出码 0 或 1。</p></div>' +
+    '<div id="pq-asg" style="'+PQ_CARD+';margin-top:16px">' +
+      '<h3 style="font-size:16px;margin:0 0 6px">本机跑通自评 · '+done+'/'+ASSIGNMENT_TASKS.length+'</h3>' +
+      '<p style="font-size:12px;color:var(--ink3);margin:0 0 8px">勾选只存 localStorage。真正的证据是 check.py 的全绿输出、你的 Git 历史和 DELIVERY.md。</p>' +
+      ASSIGNMENT_TASKS.map(t => '<label style="display:flex;gap:8px;align-items:flex-start;font-size:12.5px;padding:7px 0;border-top:1px solid var(--line);cursor:pointer">' +
+        '<input type="checkbox" data-asg="'+t.id+'" '+(self[t.id]?'checked':'')+' style="margin-top:3px"><span><b>TASK '+t.no+' '+pqEsc(t.title)+'</b>：'+pqEsc(t.judge)+'</span></label>').join('') +
+      '<button type="button" id="pq-asg-reset" style="'+PQ_BTN+';margin-top:10px">清空自评</button></div>' +
+    '<div style="'+PQ_CARD+';margin-top:16px">' +
+      '<h3 style="font-size:15px;margin:0 0 6px">参考解 · 卡住 20 分钟再看</h3>' +
+      '<p style="font-size:12px;color:var(--ink3);margin:0 0 9px">照抄能让 check 全绿，但学不到东西。看完关掉自己重写一遍。' +
+      '这些文件在 workspace 之外，不会干扰验收。</p>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:6px">'+pqLinks(ASSIGNMENT_SOLUTION)+'</div></div>';
+
+  const reset = document.getElementById('pq-asg-reset');
+  if(reset) reset.addEventListener('click', () => {
+    try { localStorage.removeItem(PQ_ASG_KEY); } catch(err) {}
+    renderAssignmentPane();
+  });
+}
+
 function bindExtras(){
   renderViewTabs();
   renderLibraryPane();
   renderToolkitsPane();
   renderPipelinePane();
+  renderAssignmentPane();
   pqSwitch('levels');
   document.addEventListener('change', e => {
-    const input = e.target.closest && e.target.closest('[data-tk]');
-    if(!input) return;
-    const self = pqSelf();
-    self[input.dataset.tk] = input.checked;
-    try { localStorage.setItem(PQ_SELF_KEY, JSON.stringify(self)); } catch(err) {}
-    renderToolkitsPane();
+    const tk = e.target.closest && e.target.closest('[data-tk]');
+    if(tk){
+      const self = pqSelf();
+      self[tk.dataset.tk] = tk.checked;
+      try { localStorage.setItem(PQ_SELF_KEY, JSON.stringify(self)); } catch(err) {}
+      renderToolkitsPane();
+      return;
+    }
+    const asg = e.target.closest && e.target.closest('[data-asg]');
+    if(asg){
+      const self = pqAsg();
+      self[asg.dataset.asg] = asg.checked;
+      try { localStorage.setItem(PQ_ASG_KEY, JSON.stringify(self)); } catch(err) {}
+      renderAssignmentPane();
+    }
   });
   document.addEventListener('click', e => {
     if(!e.target.closest || !e.target.closest('#pq-self-reset')) return;

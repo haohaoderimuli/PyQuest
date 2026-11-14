@@ -31,16 +31,18 @@ mimetypes.add_type('application/zip', '.whl')   # wheel 本质就是 zip，比 o
 mimetypes.add_type('application/json', '.json')
 mimetypes.add_type('text/csv', '.csv')          # Windows 注册表常把它标成 vnd.ms-excel
 
-# 静态白名单：游戏运行所需的后缀照常放行；工具包的手册与配置只在 toolkits/ 内放行。
-# 目的是既能下载实操包，又不把 serve.py / README.md / tests/ / .git 暴露出去。
+# 静态白名单：游戏运行所需的后缀照常放行；手册与配置只在 toolkits/ 与 assignment/ 内放行。
+# 目的是既能下载实操包 / 作业包，又不把 serve.py / README.md / tests/ / .git 暴露出去。
 BASE_EXT = {
-    '.html', '.htm', '.js', '.mjs', '.css', '.json', '.csv', '.svg',
+    '.html', '.htm', '.js', '.mjs', '.css', '.csv', '.svg',
     '.png', '.jpg', '.jpeg', '.gif', '.ico', '.otf', '.ttf', '.woff',
     '.woff2', '.wasm', '.whl', '.zip', '.data', '.map', '.txt', '.lock',
 }
 TOOLKIT_EXT = {'.md', '.py', '.toml', '.ini', '.yaml', '.yml', '.cfg', '.rst'}
 TOOLKIT_NAMES = {'Makefile', '.ruff.toml', '.pre-commit-config.yaml'}
-BLOCKED_PARTS = {'.git', '__pycache__', 'node_modules', 'tests'}
+ASSIGNMENT_NAMES = {'.gitignore', 'requirements.txt'}
+BLOCKED_PARTS = {'.git', '__pycache__', 'node_modules', 'tests',
+                 '.mutant', '.venv', 'venv', 'out'}
 
 
 def is_allowed(raw_path):
@@ -50,16 +52,34 @@ def is_allowed(raw_path):
         path = path[1:]
     if not path:
         return True  # 根路径交给 index.html
+
+    # 先做路径安全校验，再判后缀。否则 /toolkits/../server.py 这类路径会
+    # 命中「toolkits 内 .py 放行」，被 SimpleHTTPRequestHandler 解析成源码下载。
+    if '\x00' in path or '\\' in path:
+        return False
     parts = path.split('/')
-    if any(part in BLOCKED_PARTS for part in parts):
+    if '..' in parts or any(part in BLOCKED_PARTS for part in parts):
         return False
     if path.endswith('/'):
         return False  # 不列目录
+    root = os.path.realpath(os.path.dirname(os.path.abspath(__file__)))
+    full = os.path.realpath(os.path.join(root, os.path.normpath(path)))
+    try:
+        if os.path.commonpath([full, root]) != root:
+            return False
+    except ValueError:
+        return False
+
     name = parts[-1]
     ext = os.path.splitext(name)[1].lower()
     if ext in BASE_EXT:
         return True
-    if parts[0] == 'toolkits' and (ext in TOOLKIT_EXT or name in TOOLKIT_NAMES):
+    # .json 只给 Pyodide 的锁文件用；根目录 package.json / package-lock.json 不外泄
+    if parts[0] == 'pyodide' and ext == '.json':
+        return True
+    if parts[0] in ('toolkits', 'assignment') and (
+            ext in TOOLKIT_EXT or name in TOOLKIT_NAMES or name in ASSIGNMENT_NAMES
+            or (parts[0] == 'assignment' and ext == '.json')):
         return True
     return False
 
