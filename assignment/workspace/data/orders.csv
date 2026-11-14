@@ -1,0 +1,9 @@
+﻿order_no,channel,amount,status,order_date
+A001,App,100.00,paid,2026-05-01
+A002,Web,50.50,paid,2026-05-01
+A003,App,25.00,refunded,2026-05-01
+A004,App,200.00,paid,2026-05-02
+A005,Web,75.00,paid,2026-05-02
+A006,App,50.00,pending,2026-05-02
+A007,Web,100.00,refunded,2026-05-02
+A008,Web,175.00,paid,2026-05-03

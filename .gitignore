@@ -9,3 +9,10 @@ node_modules/
 tests/shots/
 toolkits/cli/out/
 toolkits/cli/logs/
+
+# 学生作业工作区：只把说明与只读数据纳入 PyQuest 仓库。
+# 代码、测试、README、.git 由学习者自己写、自己 git init，不进本仓库。
+assignment/workspace/*
+!assignment/workspace/README.md
+!assignment/workspace/data/
+!assignment/workspace/data/*.csv

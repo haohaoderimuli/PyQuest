@@ -1,0 +1,5 @@
+﻿order_no,channel,amount,status,order_date
+B001,App,10.00,paid,2026-06-01
+B002,Web,20.00,paid,2026-06-01
+B003,App,30.00,refunded,2026-06-01
+B004,Web,5.00,pending,2026-06-01
