@@ -1,0 +1,12 @@
+{
+  "role": "analyst",
+  "brief_id": "rev-rule-v2",
+  "metrics": {
+    "orders": 0,
+    "revenue": 0.0,
+    "channels": {}
+  },
+  "monthly_channels": {},
+  "reconcile_diff": null,
+  "decision": "pending"
+}

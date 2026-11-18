@@ -1,0 +1,12 @@
+{
+  "role": "qa",
+  "brief_id": "rev-rule-v2",
+  "ac_results": {
+    "AC1": "pending",
+    "AC2": "pending",
+    "AC3": "pending",
+    "AC4": "pending"
+  },
+  "defects": [],
+  "verdict": "pending"
+}

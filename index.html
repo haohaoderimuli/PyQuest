@@ -3561,6 +3561,16 @@ function renderAssignmentPane(){
     '<p style="color:var(--ink2);margin:0 0 16px;max-width:760px">前 39 关是「给你题目，写一段能跑的代码」。这里给你一份需求、一份脏数据和一个空目录，' +
     '交付一个别人敢让调度器每天跑的脚本。<b>码在你本机 VS Code 里写，成绩也只在你本机判</b>：' +
     '平台不替你验收，下面的勾选是自评，不写通关记录、不加 XP。</p>' +
+    '<div style="'+PQ_CARD+';margin-bottom:16px;border-left:3px solid #185fa5">' +
+      '<p style="font:600 10px/1 monospace;letter-spacing:.12em;color:var(--ink3)">JOINT SPRINT · 三平台共用</p>' +
+      '<h3 style="font-size:16px;margin:7px 0 6px">联合冲刺：订单收入口径调整</h3>' +
+      '<p style="font-size:12.5px;line-height:1.75;color:var(--ink2);margin:0 0 9px">' +
+      '和 TestLab（测试）、Data Quest（分析）拿同一份需求、同一份数据。你出开发产物：口径选择、' +
+      '按月按渠道汇总。三份产物由 <b>joint-sprint/check.py</b> 一起验 —— 你改了口径，另外两边的数也得跟着变。</p>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:6px">' +
+      pqLinks([['共用需求','joint/README.md'],['orders.csv','joint/data/orders.csv'],
+               ['财务侧期望','joint/data/finance_expected.csv'],['开发产物模板','joint/deliverables/dev.json']]) +
+      '</div></div>' +
     '<div style="'+PQ_CARD+';margin-bottom:16px">' +
       '<h3 style="font-size:15px;margin:0 0 8px">开始（在本机终端里，不是在这个网页里）</h3>' +
       '<pre style="font:12px/1.7 monospace;background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:10px 12px;margin:0 0 10px;overflow-x:auto;color:var(--ink)">' +

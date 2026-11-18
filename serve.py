@@ -77,9 +77,9 @@ def is_allowed(raw_path):
     # .json 只给 Pyodide 的锁文件用；根目录 package.json / package-lock.json 不外泄
     if parts[0] == 'pyodide' and ext == '.json':
         return True
-    if parts[0] in ('toolkits', 'assignment') and (
+    if parts[0] in ('toolkits', 'assignment', 'joint') and (
             ext in TOOLKIT_EXT or name in TOOLKIT_NAMES or name in ASSIGNMENT_NAMES
-            or (parts[0] == 'assignment' and ext == '.json')):
+            or (parts[0] in ('assignment', 'joint') and ext == '.json')):
         return True
     return False
 

@@ -1,0 +1,12 @@
+{
+  "role": "dev",
+  "brief_id": "rev-rule-v2",
+  "revenue_scope": "paid_only",
+  "month_basis": "paid_at",
+  "metrics": {
+    "orders": 0,
+    "revenue": 0.0,
+    "channels": {}
+  },
+  "monthly_channels": {}
+}
