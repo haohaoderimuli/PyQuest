@@ -250,3 +250,13 @@ python tests/check_assignment.py
 各项目的完整许可证文本见其官方仓库。对外分发时请保留这些声明。
 
 **数据**：`data/` 下的 CSV 全部是程序合成的假数据（固定随机种子生成），不含任何真实用户或交易信息。
+
+## 跨岗位补强：联合冲刺、traceback 救场与 Linux/Docker
+
+**P0 · 联合冲刺 `E:\WorkBuddy\projects\joint-sprint\`**：与 TestLab（测试）、Data Quest（分析）拿同一份订单口径需求和同一份数据，你出 `dev.json` —— 口径选择、按月按渠道汇总。三份产物由 `joint-sprint/check.py` 一起验：**你改了口径，另外两边的数也得跟着变**。参考解 22/22 全绿；只读副本在 `joint/`，由中心目录 `sync.py` 同步。
+
+**P1 · PRACTICE 11-4 从 traceback 定位缺陷**：给一段会抛 `KeyError` 的代码，学生读堆栈找到出错行、修正字段名并把字符串金额转成数值；`try/except` 吞异常的写法会被判题抓出（反例 32/32 全拦下）。关卡总数 **40 关**，全部参考解通过。
+
+**P2 · Linux / Docker / 依赖安全**：`toolkits/linux-docker/` 给八条救急命令、固定版本 `Dockerfile`、一句话事故清单。要点：先留证据再动手、用 `-v` 挂卷才能把输出带出来、锁版本并跑 `pip-audit`，依赖升级单独一次提交。已挂进真工具实操视图（现在 7 组）。
+
+**回归**：`run_levels.mjs` 40/40 参考解 + 32/32 反例、原 e2e 21/21、工程化 e2e 19/19、作业包 e2e 41/41、跨站联合验收 17/17，390px 无溢出、0 控制台错误。

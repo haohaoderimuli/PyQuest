@@ -39,7 +39,7 @@ BASE_EXT = {
     '.woff2', '.wasm', '.whl', '.zip', '.data', '.map', '.txt', '.lock',
 }
 TOOLKIT_EXT = {'.md', '.py', '.toml', '.ini', '.yaml', '.yml', '.cfg', '.rst'}
-TOOLKIT_NAMES = {'Makefile', '.ruff.toml', '.pre-commit-config.yaml'}
+TOOLKIT_NAMES = {'Makefile', '.ruff.toml', '.pre-commit-config.yaml', 'Dockerfile'}
 ASSIGNMENT_NAMES = {'.gitignore', 'requirements.txt'}
 BLOCKED_PARTS = {'.git', '__pycache__', 'node_modules', 'tests',
                  '.mutant', '.venv', 'venv', 'out'}
