@@ -30,7 +30,7 @@ try {
   await page.waitForTimeout(900);
 
   log((await page.locator('#viewTabs button').count()) === 5, '五个视图入口');
-  log((await page.locator('#nav .lv').count()) === 39, '导航渲染 39 关',
+  log((await page.locator('#nav .lv').count()) === 40, '导航渲染 40 关',
     String(await page.locator('#nav .lv').count()));
   log((await page.locator('#nav .ch').count()) === 11, '导航渲染 11 章');
   log((await page.locator('#progText').innerText()).includes('/ 39'), '进度总数跟着关卡变');

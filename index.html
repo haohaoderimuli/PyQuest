@@ -1346,6 +1346,38 @@ const LEVELS = [
       '写文件用 Path.write_text(json.dumps(..., ensure_ascii=False), encoding="utf-8")，覆盖写而不是追加',
       'if __name__ == "__main__": 里只调 main()，不要在模块导入时就执行业务逻辑'
     ]
+  },
+  {
+    id:'11-4', ch:11, title:'救场 · 从 traceback 定位缺陷',
+    goal:'不靠猜：读堆栈找到出错行，改一个字符让函数通过测试',
+    brief:'线上报表挂了，日志里只留下一段 <b>traceback</b>。下面这段代码直接跑会报错。你的活是<b>读懂堆栈 → 找到出错的那一行 → 只改必要的部分</b>，让三个断言全过。别用 try/except 把异常吞掉——那不是修好，是把问题藏起来。',
+    mode:'check', expect:[],
+    starter:'def summarize(rows):\n    """rows: [{"channel": "App", "amount": "100"}, ...]\n       返回 (订单数, 收入合计)。坏的版本：自己跑一次看 traceback。"""\n    total = 0\n    for i, r in enumerate(rows):\n        amount = r["amout"]        # <-- 堆栈会指到这里\n        total = total + amount\n    return (len(rows), total)\n',
+    check:[
+      'chk("summarize" in globals() and callable(summarize), "要保留 summarize 函数")',
+      'import traceback as _tb',
+      '# 先确认坏版本真的会抛异常（证明学生不是把输入改了糊弄过去）',
+      '_threw = False',
+      'try:\n    [][0]\nexcept Exception:\n    _threw = True',
+      'chk(_threw, "确认异常能被正常捕获，测试环境没坏")',
+      '_rows = [{"channel": "App", "amount": "100"}, {"channel": "Web", "amount": "50.5"}]',
+      'try:\n    _got = summarize(_rows)\nexcept Exception as _e:\n    chk(False, "summarize 还在报错：%s: %s" % (type(_e).__name__, _e))',
+      'else:\n    chk(isinstance(_got, tuple) and len(_got) == 2, "要返回 (订单数, 收入) 二元组")',
+      '    chk(_got[0] == 2, "订单数应该是 2，实际 %r" % (_got[0],))',
+      '    chk(abs(float(_got[1]) - 150.5) < 0.01, "收入应该是 150.5（注意 amount 是字符串）")',
+      '_empty = summarize([])',
+      'chk(_empty == (0, 0) or _empty == (0, 0.0), "空输入应返回 (0, 0) 而不是报错")',
+      '_bad_rows = [{"channel": "App", "amount": "100"}, {"channel": "Web"}]',
+      '_exposed = False',
+      'try:\n    summarize(_bad_rows)\nexcept (KeyError, TypeError):\n    _exposed = True',
+      'chk(_exposed, "遇到缺 amount 的坏数据要抛出来，别用 except 把问题吞掉")'
+    ].join('\n'),
+    hints:[
+      'Traceback 最后一行写出错的源文件名与行号，往上读调用栈才知道是谁传进来的',
+      'KeyError: \'amout\' 说的是「没有这个键」，不是「值不对」—— 拼错了字段名',
+      'amount 是字符串，直接相加会变成字符串拼接，要先 float()',
+      '修好后空列表要能正常返回 (0, 0)，不能靠 except 吞掉'
+    ]
   }
 ];
 

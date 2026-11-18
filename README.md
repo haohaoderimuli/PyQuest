@@ -1,6 +1,6 @@
 # 蛇之塔 · PyQuest
 
-一个跑在浏览器里的 Python 闯关游戏。**39 关 11 章**，从 `print` 一路到 `pandas` 分组分析、`matplotlib` 画图，再到**脚本工程化**：argparse、pathlib、异常与 logging、dataclass、unittest、退出码与幂等、可交付 CLI。最后一关产出一份可下载的分析报告，工程化七关另串成一条可导出的交付链。
+一个跑在浏览器里的 Python 闯关游戏。**40 关 11 章**，从 `print` 一路到 `pandas` 分组分析、`matplotlib` 画图，再到**脚本工程化**：argparse、pathlib、异常与 logging、dataclass、unittest、退出码与幂等、可交付 CLI。最后一关产出一份可下载的分析报告，工程化七关另串成一条可导出的交付链。
 
 另有**岗位知识库 8 篇**与**真工具实操包**（venv / pytest / ruff / CI / 打包的逐步手册与真实配置文件），补的是「写代码片段」和「写能交付的脚本」之间的距离。
 
@@ -33,7 +33,7 @@ python serve.py
 ## 目录里都有什么
 
 ```
-index.html          整个游戏（HTML + CSS + JS 全内联，含 39 关 / 理论卡 / 知识库 / 工具台 / 交付链 / 第一周作业）
+index.html          整个游戏（HTML + CSS + JS 全内联，含 40 关 / 理论卡 / 知识库 / 工具台 / 交付链 / 第一周作业）
 serve.py            本地静态服务器，带正确的 MIME、缓存策略与静态白名单
 启动游戏.bat        Windows 启动入口
 package.json        只有 devDependencies，运行时零依赖
@@ -124,7 +124,7 @@ python -m unittest discover -s toolkits/testing -p "test_*.py" -v
 
 ## 企业第一周作业包（`assignment/`）
 
-前 39 关是「给你题目，写一段能跑的代码」；`toolkits/` 是「照着手册把真工具装起来」。这一份是**工单**：一份需求、一份脏数据、一个空目录，交付一个别人敢让调度器每天跑的脚本。码在你本机 VS Code 写，平台不替你判。
+前 40 关是「给你题目，写一段能跑的代码」；`toolkits/` 是「照着手册把真工具装起来」。这一份是**工单**：一份需求、一份脏数据、一个空目录，交付一个别人敢让调度器每天跑的脚本。码在你本机 VS Code 写，平台不替你判。
 
 | 关卡 | 时点 | 交付 | 企业里对应的动作 |
 | --- | --- | --- | --- |
@@ -187,7 +187,7 @@ python tests/check_assignment.py
 期望输出：
 
 ```
-参考解 39/39 通过，反例 31/31 拦下
+参考解 40/40 通过，反例 32/32 拦下
 ```
 
 反例是 31 个「故意写错」的答案（大小写不一致、差一错误、忘了汇总、分母口径错、两个格子互换但总额不变、图画对了但没标题、柱状图没排序、把「GMV 最高」当成「客单价最高」……以及工程化关里 `--limit` 忘了 `type=int`、中文写成 `\uXXXX`、用 print 代替 logging、只写 1 个测试、参数错抛 SystemExit、追加写文件破坏幂等），用来确认判题不会把它们放过去。
