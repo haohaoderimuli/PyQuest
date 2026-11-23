@@ -1,6 +1,6 @@
 # 蛇之塔 · PyQuest
 
-一个跑在浏览器里的 Python 闯关游戏。**40 关 11 章**，从 `print` 一路到 `pandas` 分组分析、`matplotlib` 画图，再到**脚本工程化**：argparse、pathlib、异常与 logging、dataclass、unittest、退出码与幂等、可交付 CLI。最后一关产出一份可下载的分析报告，工程化七关另串成一条可导出的交付链。
+一个跑在浏览器里的 Python 闯关游戏。**48 关 13 章**，从 `print` 一路到 `pandas` 分组分析、`matplotlib` 画图，再到**脚本工程化**：argparse、pathlib、异常与 logging、dataclass、unittest、退出码与幂等、可交付 CLI。最后一关产出一份可下载的分析报告，工程化七关另串成一条可导出的交付链。第 12 章「织网之厅」补的是「会写脚本」到「能改别人代码」的分水岭：生成器（逐行处理大文件）、装饰器（`@timed` 记耗时且异常也留痕）、正则（抠单号 + 手机号脱敏）、`asyncio`（`gather` 并发而不是 for 里逐个 await）。第 13 章「接口之门」把脚本变成服务：FastAPI 的路由、`Query(ge=,le=)` 把边界写进签名、`response_model` 管住出去什么、`Depends` 复用认证，以及「`Header(...)` 必填会给你 422 而不是 401」这个几乎人人踩的坑。这一章**在服务端真跑**（浏览器里的 Pyodide 没有 FastAPI），判分器导入你的 `app` 后用 `TestClient` 真发请求。
 
 另有**岗位知识库 8 篇**与**真工具实操包**（venv / pytest / ruff / CI / 打包的逐步手册与真实配置文件），补的是「写代码片段」和「写能交付的脚本」之间的距离。
 
@@ -33,7 +33,7 @@ python serve.py
 ## 目录里都有什么
 
 ```
-index.html          整个游戏（HTML + CSS + JS 全内联，含 40 关 / 理论卡 / 知识库 / 工具台 / 交付链 / 第一周作业）
+index.html          整个游戏（HTML + CSS + JS 全内联，含 48 关 / 理论卡 / 知识库 / 工具台 / 交付链 / 第一周作业）
 serve.py            本地静态服务器，带正确的 MIME、缓存策略与静态白名单
 启动游戏.bat        Windows 启动入口
 package.json        只有 devDependencies，运行时零依赖
@@ -46,6 +46,7 @@ assignment/         企业第一周作业包
   check.py            本机真跑验收（21 条检查）
   solution/           完整参考解 + 交付文件示例，卡住再看
   DELIVERY.md         交付记录模板
+api-lab/           第 13 章的判分环境（fastapi + httpx 的 venv、四关判据、参考解与反例）
 data/               关卡用的数据文件
   orders.csv          2400 条合成电商订单
   products.csv        40 个商品（成本、库存、上架时间）
@@ -58,6 +59,8 @@ tests/
   e2e_engineering.mjs 工程化扩展的浏览器验收（新视图 / 下载 / 自评 / 交付链）
   e2e_assignment.mjs  作业包浏览器验收（下载 / 自评隔离 / 白名单 / 路径穿越）
   check_assignment.py 验收脚本的自检：参考解全绿、六种破坏各被拦下
+  check_api.py        第 13 章判分器自检：四关参考解满分、四个反例被拦、越界 import 被拒
+  e2e_ch13.mjs        第 13 章浏览器验收：接口清单 / 提交实测 / 逐条回执 / 错误定位
 ```
 
 ---
@@ -77,6 +80,8 @@ tests/
 | 9 结算台 | **项目实战**：从需求到清洗、分析、出图、生成报告 | 1 |
 | 10 脚本工坊 | **工程化基础**：argparse / pathlib 与编码 / 异常与 logging / dataclass 与类型注解 | 4 |
 | 11 交付之门 | **可维护的脚本**：unittest / 退出码与幂等 / BOSS 可交付 CLI | 3 |
+| 12 织网之厅 | **从脚本到别人的代码**：生成器 / 装饰器 / 正则 / asyncio 并发 | 4 |
+| 13 接口之门 | **写服务**：FastAPI 路由 / 参数校验 / 响应模型 / 依赖注入与统一错误格式（服务端判分）| 4 |
 
 每一关都是「理论 / 动手」两个页签：
 
@@ -89,6 +94,7 @@ tests/
 - **断言判题**（第 6–7 章）：不看打印了什么，而是在同一个命名空间里跑隐藏断言，直接检查 `result` 的数据结构。答错时告诉你「列名不对」「行数不对」「少了 3 个空值没处理」这种具体原因。
 - **图表判题**（第 8 章）：检查 `Figure` 对象的结构——几条线、每个点的数值、标题、轴标签、图例文字，而不是比对像素。通过后把图画出来给你看。
 - **多产出判题**（第 9 章）：同时校验一个 `report` 字典里的 7 个指标和一张图，每项独立报错。通过后把你算的数字和图拼成一份 HTML 报告，可以直接下载存档。
+- **服务端真跑**（第 13 章）：浏览器里没有 FastAPI（ASGI 要事件循环，`pydantic-core` 也没法现装）。点「提交并实测」把代码发给 `serve.py`，由 `api-lab/venv` 起子进程导入你的 `app`，再用 `TestClient` 逐条真发请求——判的是真实状态码与 JSON，不是"像不像 FastAPI 代码"。失败时直接告诉你「实际 422」而不是「期望 401」。
 - **工程化断言判题**（第 10–11 章）：在同一个命名空间里真跑标准库——`argparse` 解析参数、`pathlib` 写文件再读回、`logging` 捕获 warning、`dataclasses.fields` 检查结构、`unittest.TestLoader` 真跑你写的测试、同一参数调两次比结果验幂等。判的是脚本行为，不是打印了什么。
 
 ---
@@ -173,9 +179,13 @@ python serve.py                         # 另开一个终端，默认 8770
 node tests/e2e.mjs
 node tests/e2e_engineering.mjs           # 工程化扩展的新视图验收
 node tests/e2e_assignment.mjs            # 作业包：下载 / 自评隔离 / 白名单 / 路径穿越
+node tests/e2e_ch13.mjs                  # 第 13 章：接口清单 / 提交实测 / 逐条回执（需要 api-lab/venv）
 
 # 作业验收脚本的自检（不需要浏览器，约 30 秒）
 python tests/check_assignment.py
+
+# 第 13 章判分器自检（需要 api-lab/venv 装好 fastapi，约 40 秒）
+python tests/check_api.py
 ```
 
 `package.json` 里只有 `devDependencies: playwright-core` 一项，游戏本身零依赖。
@@ -187,8 +197,11 @@ python tests/check_assignment.py
 期望输出：
 
 ```
-参考解 40/40 通过，反例 32/32 拦下
+参考解 44/44 通过（浏览器可跑），反例 39/39 拦下
+服务端关卡 4 关（13-1 / 13-2 / 13-3 / 13-4）不在本轮，跑 tests/check_api.py
 ```
+
+`run_levels.mjs` 跳过第 13 章（浏览器里没有 FastAPI），那一章的判据由 `tests/check_api.py` 在 `api-lab/venv` 里跑，期望 `14 项通过，0 项失败`。
 
 反例是 31 个「故意写错」的答案（大小写不一致、差一错误、忘了汇总、分母口径错、两个格子互换但总额不变、图画对了但没标题、柱状图没排序、把「GMV 最高」当成「客单价最高」……以及工程化关里 `--limit` 忘了 `type=int`、中文写成 `\uXXXX`、用 print 代替 logging、只写 1 个测试、参数错抛 SystemExit、追加写文件破坏幂等），用来确认判题不会把它们放过去。
 
@@ -223,6 +236,8 @@ python tests/check_assignment.py
 - 进度存在浏览器 localStorage 里，没有云同步。换设备或换浏览器时，用顶栏「⋯」→「导出进度」存成 JSON，在新环境里「导入进度」即可。
 - 进度是按**网址**存的。`serve.py` 端口从 8770 往后找，如果 8770 被占用而挪到 8771，浏览器会当成另一个站点，进度看着像丢了——关掉占用的那个实例再开即可。
 - 工程化扩展里的 venv / pytest / ruff / pre-commit / CI **不在浏览器里跑**：`toolkits/` 给的是逐步手册与真实配置文件，其中 `daily_report.py`（标准库 CLI）和 `test_channel_report.py`（5 项 unittest）已在本机真跑过，其余需要你在自己的环境里按手册跑通。页面里的自评勾选只存 localStorage，不写通关记录、不加 XP。
+- **第 13 章必须用 `serve.py` 打开**：判分靠 `POST /api/api-lab/grade`，而 GitHub Pages 只有静态文件，没有后端。在线版能读这一章的课文和接口清单，但点「提交并实测」会提示连不上判分服务。另外首次要装一次 venv（`cd api-lab && python -m venv venv && venv\Scripts\pip install -r requirements.txt`，约 30MB）。
+- 第 13 章的判分是"防手滑"而不是安全沙箱：学生代码在你自己的权限下执行，AST 白名单能拦住常见越界写法（`import os`、`import uvicorn`、`eval`），但挡不住刻意构造的逃逸。判分 45 秒超时、独占一把锁，第二个人同时提交会收到 429。
 - `assignment/` 的作业**必须在本机 VS Code 里做**：平台能下载任务书与验收脚本，但看不到你的工作区，也不会替你判分或收作业。`check.py` 只在本机执行、不联网；变异测试会在 `workspace/.mutant/` 临时复制并改坏你的模块，跑完立刻删除，不改动源文件。作业不模拟真实调度器、不接数据库、不发邮件。
 
 ---
@@ -255,8 +270,8 @@ python tests/check_assignment.py
 
 **P0 · 联合冲刺 `E:\WorkBuddy\projects\joint-sprint\`**：与 TestLab（测试）、Data Quest（分析）拿同一份订单口径需求和同一份数据，你出 `dev.json` —— 口径选择、按月按渠道汇总。三份产物由 `joint-sprint/check.py` 一起验：**你改了口径，另外两边的数也得跟着变**。参考解 22/22 全绿；只读副本在 `joint/`，由中心目录 `sync.py` 同步。
 
-**P1 · PRACTICE 11-4 从 traceback 定位缺陷**：给一段会抛 `KeyError` 的代码，学生读堆栈找到出错行、修正字段名并把字符串金额转成数值；`try/except` 吞异常的写法会被判题抓出（反例 32/32 全拦下）。关卡总数 **40 关**，全部参考解通过。
+**P1 · PRACTICE 11-4 从 traceback 定位缺陷**：给一段会抛 `KeyError` 的代码，学生读堆栈找到出错行、修正字段名并把字符串金额转成数值；`try/except` 吞异常的写法会被判题抓出（反例 39/39 全拦下）。关卡总数 **44 关**，全部参考解通过。
 
 **P2 · Linux / Docker / 依赖安全**：`toolkits/linux-docker/` 给八条救急命令、固定版本 `Dockerfile`、一句话事故清单。要点：先留证据再动手、用 `-v` 挂卷才能把输出带出来、锁版本并跑 `pip-audit`，依赖升级单独一次提交。已挂进真工具实操视图（现在 7 组）。
 
-**回归**：`run_levels.mjs` 40/40 参考解 + 32/32 反例、原 e2e 21/21、工程化 e2e 19/19、作业包 e2e 41/41、跨站联合验收 17/17，390px 无溢出、0 控制台错误。
+**回归**：`run_levels.mjs` 44/44 参考解 + 39/39 反例、原 e2e 21/21、工程化 e2e 19/19、作业包 e2e 41/41、跨站联合验收 17/17，390px 无溢出、0 控制台错误。

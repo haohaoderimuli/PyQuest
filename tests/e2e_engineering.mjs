@@ -12,6 +12,10 @@ const OUT = path.join(__dirname, 'shots');
 fs.mkdirSync(OUT, { recursive: true });
 const URL = 'http://127.0.0.1:8770/index.html';
 
+/* 加关卡 / 加章之后只改这两个数，别散在断言里改 */
+const EXPECT_LEVELS = 48;
+const EXPECT_CHAPTERS = 13;
+
 let pass = 0, fail = 0;
 const log = (ok, name, detail) => {
   console.log(`${ok ? 'PASS' : 'FAIL'} | ${name}${detail ? ' | ' + detail : ''}`);
@@ -30,10 +34,10 @@ try {
   await page.waitForTimeout(900);
 
   log((await page.locator('#viewTabs button').count()) === 5, '五个视图入口');
-  log((await page.locator('#nav .lv').count()) === 40, '导航渲染 40 关',
+  log((await page.locator('#nav .lv').count()) === EXPECT_LEVELS, '导航渲染 ' + EXPECT_LEVELS + ' 关',
     String(await page.locator('#nav .lv').count()));
-  log((await page.locator('#nav .ch').count()) === 11, '导航渲染 11 章');
-  log((await page.locator('#progText').innerText()).includes('/ 39'), '进度总数跟着关卡变');
+  log((await page.locator('#nav .ch').count()) === EXPECT_CHAPTERS, '导航渲染 ' + EXPECT_CHAPTERS + ' 章');
+  log((await page.locator('#progText').innerText()).includes('/ ' + EXPECT_LEVELS), '进度总数跟着关卡变');
 
   // 知识库
   await page.click('#viewTabs button[data-view="library"]');
@@ -44,7 +48,7 @@ try {
   // 真工具实操 + 下载 + 自评
   await page.click('#viewTabs button[data-view="toolkits"]');
   await page.waitForTimeout(250);
-  log((await page.locator('#pane-toolkits article').count()) === 6, '实操台 6 组工具');
+  log((await page.locator('#pane-toolkits article').count()) === 7, '实操台 7 组工具');
   log((await page.locator('#pane-toolkits a[download]').count()) >= 15, '真实文件下载入口齐全',
     String(await page.locator('#pane-toolkits a[download]').count()));
 
@@ -93,7 +97,7 @@ try {
   await page.click('#viewTabs button[data-view="levels"]');
   await page.waitForTimeout(250);
   log(await page.locator('.layout').isVisible(), '切回闯关视图布局恢复');
-  log((await page.locator('#nav .lv').count()) === 39, '关卡列表未受影响');
+  log((await page.locator('#nav .lv').count()) === EXPECT_LEVELS, '关卡列表未受影响');
 
   // 390px
   await page.setViewportSize({ width: 390, height: 844 });

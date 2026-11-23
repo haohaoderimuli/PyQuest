@@ -1,0 +1,8 @@
+# 判分用（serve.py 起子进程跑 run_checks.py）
+fastapi==0.165.0
+httpx==0.28.1
+
+# 判分不需要，但你按手册在本机起服务时要用：
+#   copy solutions\13-1.py myapp.py
+#   venv\Scripts\python -m uvicorn myapp:app --reload --port 8000
+uvicorn==0.54.0

@@ -6,7 +6,10 @@
   "scripts": {
     "serve": "python serve.py",
     "test": "node tests/run_levels.mjs",
-    "test:e2e": "node tests/e2e.mjs"
+    "test:e2e": "node tests/e2e.mjs",
+    "test:ch12": "node tests/e2e_ch12.mjs",
+    "test:api": "python tests/check_api.py",
+    "test:ch13": "node tests/e2e_ch13.mjs"
   },
   "devDependencies": {
     "playwright-core": "^1.48.0"

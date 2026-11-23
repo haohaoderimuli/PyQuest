@@ -170,6 +170,24 @@
   .expect h4{font-size:10.5px;letter-spacing:1.4px;text-transform:uppercase;color:var(--ink3);margin-bottom:7px;font-weight:700}
   .expect pre{font-family:var(--mono);font-size:12.5px;color:#a9e5b8;line-height:1.65;white-space:pre-wrap;word-break:break-all}
 
+  /* 服务端关卡的接口清单 */
+  .api-list{display:flex;flex-direction:column;gap:5px}
+  .api-row{display:flex;align-items:baseline;gap:8px;font-size:12px;line-height:1.6;flex-wrap:wrap}
+  .api-row .m{
+    font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.4px;
+    padding:1px 5px;border-radius:4px;background:rgba(255,255,255,.07);color:var(--ink3);flex:none;
+  }
+  .api-row .m-get{background:rgba(63,209,90,.16);color:var(--ok)}
+  .api-row .m-post{background:rgba(255,212,59,.16);color:var(--yellow)}
+  .api-row code{font-family:var(--mono);font-size:12px;color:var(--ink);flex:none}
+  .api-row span{color:var(--ink3);font-size:11.5px}
+  .api-chk{display:flex;gap:7px;align-items:flex-start;font-size:12.5px;line-height:1.65;padding:3px 0}
+  .api-chk i{font-style:normal;flex:none;width:14px;text-align:center}
+  .api-chk.ok i{color:var(--ok)}
+  .api-chk.bad i{color:var(--bad)}
+  .api-chk.bad span{color:#ffb3ae}
+  .api-chk .dt{display:block;color:var(--ink3);font-size:11.5px;margin-top:1px}
+
   .toolbar{display:flex;align-items:center;gap:8px;margin-bottom:9px;flex-wrap:wrap}
   .toolbar .spacer{flex:1}
   button{font:inherit;cursor:pointer;border:0;transition:.16s}
@@ -485,7 +503,9 @@ const CHAPTERS = [
   { id:8, name:'绘图台', sub:'matplotlib' },
   { id:9, name:'结算台', sub:'项目实战' },
   { id:10, name:'脚本工坊', sub:'工程化基础' },
-  { id:11, name:'交付之门', sub:'可维护的脚本' }
+  { id:11, name:'交付之门', sub:'可维护的脚本' },
+  { id:12, name:'织网之厅', sub:'生成器、装饰器与并发' },
+  { id:13, name:'接口之门', sub:'FastAPI 服务' }
 ];
 
 const LEVELS = [
@@ -1378,6 +1398,251 @@ const LEVELS = [
       'amount 是字符串，直接相加会变成字符串拼接，要先 float()',
       '修好后空列表要能正常返回 (0, 0)，不能靠 except 吞掉'
     ]
+  },
+
+  /* ---------- 第十二章：织网之厅（生成器、装饰器、正则、并发） ---------- */
+  {
+    id:'12-1', ch:12, title:'生成器 · 十万行别一次塞进内存',
+    goal:'用 yield 逐行产出，让大文件边读边算',
+    brief:'导出的订单明细有 40 万行，同事一句 <code>f.readlines()</code> 把 1.2G 全读进内存，脚本当场被 OOM 杀掉。<b>生成器是「要一条给一条」</b>：内存里永远只有当前这一行，累加完就扔。改法很小——把 <code>return rows</code> 换成 <code>yield row</code>。',
+    mode:'check', expect:[],
+    starter:'def iter_amounts(path):\n    """逐行读 CSV：跳过表头、跳过空行、跳过金额不是数字的行，yield 出 float 金额。"""\n    pass\n\n\ndef total_revenue(path):\n    """用 iter_amounts 累加，返回总额。不许用 readlines()。"""\n    pass\n',
+    check:[
+      'import inspect, tempfile, os, ast',
+      'chk("iter_amounts" in globals(), "还没有定义 iter_amounts")',
+      'chk(inspect.isgeneratorfunction(iter_amounts), "iter_amounts 要用 yield 写成生成器函数，不能 return 一个列表")',
+      'chk("total_revenue" in globals(), "还要定义 total_revenue")',
+      '_p = tempfile.mktemp(suffix=".csv")',
+      'with open(_p, "w", encoding="utf-8") as _f:',
+      '    _f.write("order_no,amount\\n")',
+      '    for _i in range(1000):',
+      '        _f.write("SO-%04d,%d\\n" % (_i, _i % 7 + 1))',
+      '    _f.write("SO-BAD,abc\\n")',
+      '    _f.write("\\n")',
+      '_gen = iter_amounts(_p)',
+      'chk(hasattr(_gen, "__next__"), "调用 iter_amounts 要立刻得到一个生成器对象")',
+      'chk(not isinstance(_gen, (list, tuple, dict)), "别把行攒进列表再返回，那就等于全读进内存了")',
+      '_rows = list(_gen)',
+      'chk(len(_rows) == 1000, "坏行和空行要跳过，应该产出 1000 个金额，实际 %d 个" % len(_rows))',
+      'chk(abs(sum(_rows) - 3997) < 0.01, "金额合计应该是 3997，实际 %r" % (sum(_rows),))',
+      '_t = total_revenue(_p)',
+      'chk(abs(float(_t) - 3997) < 0.01, "total_revenue 也应该算出 3997，实际 %r" % (_t,))',
+      'chk("readlines" not in __src__, "别用 readlines()，那等于把整个文件读进内存")',
+      'os.path.exists(_p) and os.remove(_p)',
+      'chk(True, "通过")'
+    ].join('\n'),
+    hints:[
+      '生成器函数里有 yield，调用它不执行函数体，只返回一个生成器对象；next() 时才跑到下一个 yield',
+      '读文件用 for line in f: 就已经是逐行了，不需要 readlines()',
+      '金额转换用 try: float(part) except ValueError: continue —— 坏行跳过而不是让整个脚本崩',
+      'total_revenue 里写 for a in iter_amounts(path): total += a，不要先 list() 再 sum'
+    ]
+  },
+  {
+    id:'12-2', ch:12, title:'装饰器 · 一次调用记一条耗时',
+    goal:'用 @timed 给函数套一层日志，不碰函数体',
+    brief:'十个脚本都要记「哪个函数慢」，总不能每个都改一遍。<b>装饰器是「包在函数外面的一层」</b>：进入前记时间，出来时把 (函数名, 毫秒) 追加到 <code>CALLS</code>。注意两点：<code>functools.wraps</code> 保住函数名，报错时也要记一条（用 try/finally），否则失败率永远算不出来。',
+    mode:'check', expect:[],
+    starter:'import functools\nimport time\n\nCALLS = []\n\n\ndef timed(fn):\n    """返回一个 wrapper：调用前后记时间，把 (函数名, 耗时的毫秒数) 追加到 CALLS。"""\n    pass\n',
+    check:[
+      'import functools, inspect',
+      'chk("timed" in globals() and callable(timed), "还没有定义 timed")',
+      'chk(isinstance(globals().get("CALLS"), list), "要定义 CALLS = [] 用来攒调用记录")',
+      'CALLS.clear()',
+      '@timed',
+      'def slow_add(a, b):',
+      '    time.sleep(0.02)',
+      '    return a + b',
+      'chk(slow_add(2, 3) == 5, "装饰之后要原样返回结果")',
+      'chk(slow_add.__name__ == "slow_add", "要用 functools.wraps 保住函数名，不然日志里全叫 wrapper")',
+      'chk(len(CALLS) == 1, "调用一次应该记一条，实际 %d 条" % len(CALLS))',
+      '_rec = CALLS[0]',
+      'chk(isinstance(_rec, (tuple, list)) and len(_rec) == 2, "每条记录要是 (函数名, 毫秒) 两元组，实际 %r" % (_rec,))',
+      'chk(_rec[0] == "slow_add", "记录里要带函数名，实际 %r" % (_rec[0],))',
+      'chk(10 <= float(_rec[1]) <= 800, "耗时要按毫秒记（0.02 秒约 20ms），实际 %r" % (_rec[1],))',
+      '@timed',
+      'def boom():',
+      '    raise ValueError("x")',
+      'try:',
+      '    boom()',
+      'except ValueError:',
+      '    pass',
+      'chk(len(CALLS) == 2, "抛异常的调用也要记一条（try/finally），不然失败率永远算不出来")',
+      'chk(True, "通过")'
+    ].join('\n'),
+    hints:[
+      'def timed(fn): 里定义 def wrapper(*args, **kwargs): ... 然后 return wrapper',
+      '记时间用 time.time()，毫秒就是 (t1 - t0) * 1000；别写 time.time_ns 再自己换算成秒',
+      'wrapper 里用 try: return fn(...) finally: CALLS.append(...)，这样报错也会记',
+      '@functools.wraps(fn) 加在 wrapper 上，它把 __name__ / __doc__ 复制过来'
+    ]
+  },
+  {
+    id:'12-3', ch:12, title:'正则 · 从一堆脏文本里抠单号',
+    goal:'用 re 精确提取订单号，并把手机号中间四位打码',
+    brief:'客服把用户原话整段贴进工单，里面混着订单号、手机号和一堆空格。人工找容易漏，<code>split()</code> 又切不准。<b>正则描述的是「形状」</b>：<code>SO-</code> + 8 位数字 + <code>-</code> + 4 位数字。同时另写一个把 11 位手机号中间四位换成 <code>****</code>——脱敏是合规要求，不能把原号写进日志。',
+    mode:'check', expect:[],
+    starter:'import re\n\n\ndef extract_orders(text):\n    """提取所有 SO-YYYYMMDD-NNNN 形式的订单号，去重且保持出现顺序。"""\n    pass\n\n\ndef mask_phone(text):\n    """把文本里的 11 位手机号中间四位换成 ****：13812348000 -> 138****8000。"""\n    pass\n',
+    check:[
+      'import re',
+      'chk("extract_orders" in globals(), "还没有定义 extract_orders")',
+      '_t = "单号 SO-20240317-0042 和 SO-20240318-0007；重复 SO-20240317-0042；坏的 SO-2024-1234、SO-20240317-42 不算。"',
+      '_r = extract_orders(_t)',
+      'chk(_r == ["SO-20240317-0042", "SO-20240318-0007"], "按出现顺序去重提取，实际 %r" % (_r,))',
+      'chk(extract_orders("") == [], "空文本要返回空列表")',
+      'chk(extract_orders("光有 20240317-0042 没有 SO- 前缀，不算单号") == [], "没有 SO- 前缀的数字串不是订单号，别用 \\\\d+ 粗暴抠数字")',
+      'chk(extract_orders("SO-202403170042 少了中间短横线") == [], "少了中间那个短横线也不算，形状要卡准")',
+      'chk("mask_phone" in globals(), "还要定义 mask_phone")',
+      '_m = mask_phone("联系 13812348000 或 13900001111")',
+      'chk(_m == "联系 138****8000 或 139****1111", "11 位手机号中间四位要打码，实际 %r" % (_m,))',
+      'chk(mask_phone("工号 12345") == "工号 12345", "不是 11 位的数字不要动")',
+      'chk(mask_phone("") == "", "空字符串要原样返回")',
+      'chk(True, "通过")'
+    ].join('\n'),
+    hints:[
+      '订单号形状：SO- + 8 位数字 + - + 4 位数字，写成 r"SO-\\d{8}-\\d{4}"',
+      '去重保序：先收集，再遍历时判断 if x not in seen: seen.add(x); out.append(x)；用 dict.fromkeys 也行',
+      '手机号：r"(1[3-9]\\d)\\d{4}(\\d{4})"，替换成 r"\\1****\\2"；注意用 re.sub 全局替换',
+      'mask_phone 里的 11 位判断要靠正则本身，别用 len(text)==11 —— 文本里还有别的字'
+    ]
+  },
+  {
+    id:'12-4', ch:12, title:'并发 · 30 个请求不该一条条等',
+    goal:'用 async/await + gather 把串行等待变成并发等待',
+    brief:'要给 30 个订单查物流，每个接口 200ms，串行就是 6 秒，用户早关了页面。<b>等待不是干活</b>：<code>asyncio</code> 在等 IO 的时候切去跑下一个。<br><span class="dim" style="font-size:12.5px">说明：浏览器里的 Python 没有真线程，这一关判你写的结构对不对（协程函数、真 await、用 gather 一次性交出去）；在你本机用 <code>python -c "import asyncio"</code> 跑同一份代码就是真并发。</span>',
+    mode:'check', expect:[],
+    starter:'import asyncio\n\n\nasync def fetch_order(oid):\n    """模拟一次接口调用：await asyncio.sleep(0.01)，然后返回 {"id": oid, "status": "ok"}。"""\n    pass\n\n\nasync def fetch_all(ids):\n    """并发拿全部：用 asyncio.gather，按 ids 的顺序返回结果列表。"""\n    pass\n',
+    check:[
+      'import asyncio, ast',
+      'chk(asyncio.iscoroutinefunction(fetch_order), "fetch_order 要写成 async def，普通函数做不到并发")',
+      'chk(asyncio.iscoroutinefunction(fetch_all), "fetch_all 也要是 async def")',
+      '_c = fetch_order(7)',
+      'chk(asyncio.iscoroutine(_c), "调用 async 函数拿到的是协程对象，不是结果")',
+      '_suspended = False',
+      'try:',
+      '    _c.send(None)',
+      '    _suspended = True',
+      'except StopIteration:',
+      '    _suspended = False',
+      'try:',
+      '    _c.close()',
+      'except BaseException:',
+      '    pass',
+      'chk(_suspended, "fetch_order 里要真的 await 一次（asyncio.sleep），直接 return 就是在骗人")',
+      '_tree = ast.parse(__src__)',
+      '_gather = [n for n in ast.walk(_tree) if isinstance(n, ast.Call) and getattr(n.func, "attr", "") == "gather"]',
+      'chk(len(_gather) >= 1, "fetch_all 里要用 asyncio.gather 把协程一起交出去")',
+      '_serial = False',
+      'for _n in ast.walk(_tree):',
+      '    if isinstance(_n, ast.For):',
+      '        for _sub in ast.walk(_n):',
+      '            if isinstance(_sub, ast.Await):',
+      '                _serial = True',
+      'chk(not _serial, "for 循环里一个个 await 就是串行，等于没并发：先把协程造齐，再 gather 一次")',
+      'chk(True, "通过")'
+    ].join('\n'),
+    hints:[
+      'async def 里用 await asyncio.sleep(0.01) 模拟网络等待；不要用 time.sleep —— 那会卡住整个事件循环',
+      'fetch_all 里先 coros = [fetch_order(i) for i in ids]，再 return await asyncio.gather(*coros)',
+      'gather 的返回顺序和传进去的顺序一致，不用再自己排序',
+      '别写 for i in ids: out.append(await fetch_order(i)) —— 这是串行，30 个还是 6 秒'
+    ]
+  },
+
+  /* ---------- 第十三章：接口之门（服务端判分） ---------- */
+  {
+    id:'13-1', ch:13, title:'最小的服务 · app 与路由',
+    goal:'把函数挂到 URL 上，让别人的程序能调你',
+    brief:'前面十二关你写的都是「自己跑完就结束」的脚本。服务不一样：<b>它得一直活着，等别人来敲门</b>。'
+        + 'FastAPI 的最小单元就是三行——<code>app = FastAPI()</code>、<code>@app.get("/路径")</code>、然后一个函数。'
+        + '本关两个接口：<code>/healthz</code> 给运维探活用，<code>/orders/{order_id}</code> 查订单。'
+        + '注意后者的 <code>order_id</code> <b>要标注成 int</b>——这不是注释，是契约：传 <code>abc</code> 时框架会在进函数之前就返回 422。'
+        + '<br><br><b>本关在服务端判分</b>：判分器会真的把你的 app 装配起来，用 TestClient 逐条发请求。'
+        + '所以按钮是「提交并实测」，不是浏览器里跑 Python。',
+    mode:'server', expect:[],
+    apiList:[
+      { m:'GET', p:'/healthz', n:'200，body 恰好 {"status":"ok"}' },
+      { m:'GET', p:'/orders/7', n:'200，body {"id":7,"status":"paid"}' },
+      { m:'GET', p:'/orders/abc', n:'422（证明 order_id 声明成了 int）' }
+    ],
+    starter:'from fastapi import FastAPI\n\napp = FastAPI(title="订单服务")\n\n\n@app.get("/healthz")\ndef healthz():\n    """探活：返回 {"status": "ok"}。"""\n    pass\n\n\n@app.get("/orders/{order_id}")\ndef get_order(order_id):        # ← 这里缺了类型标注\n    """返回 {"id": order_id, "status": "paid"}。"""\n    pass\n',
+    hints:[
+      '两个函数都还是 pass，先把 return 写出来：healthz 返回 {"status": "ok"}，get_order 返回 {"id": order_id, "status": "paid"}',
+      '把 get_order 的签名改成 def get_order(order_id: int)：加上 int 之后，/orders/abc 才会被框架挡住返回 422',
+      '返回字典就行，不用自己 json.dumps——FastAPI 会序列化，并自动带上 Content-Type: application/json'
+    ]
+  },
+  {
+    id:'13-2', ch:13, title:'查询参数 · 边界写在签名里',
+    goal:'让「传错参数」在进函数之前就被拦住',
+    brief:'列表接口一定会遇到三个参数：筛什么、取几条、从第几条开始。新手常写 <code>def list_orders(status=None, limit=20)</code> 然后在函数体里 <code>if limit &gt; 100: return 400</code>。'
+        + '这能挡住错值，但<b>契约丢了</b>：<code>/docs</code> 里看不到边界，前端也拿不到「哪个字段错了」。'
+        + 'FastAPI 的做法是把约束写进签名：<code>limit: int = Query(20, ge=1, le=100)</code>，越界直接 422。'
+        + '筛选用 <code>Literal["paid","pending","refunded"]</code>，写别的值也是 422。'
+        + '<br><br>还有一个<b>最容易做错的地方</b>：<code>total</code> 是「过滤之后、分页之前」的总数。'
+        + '写成 <code>len(items)</code>，前端分页器就会以为只有一页。',
+    mode:'server', expect:[],
+    apiList:[
+      { m:'GET', p:'/orders', n:'200，total=3，items 3 条' },
+      { m:'GET', p:'/orders?status=paid', n:'total=2，items 只含 paid' },
+      { m:'GET', p:'/orders?status=pending', n:'total=1，id=2' },
+      { m:'GET', p:'/orders?limit=1', n:'items 1 条，但 total 仍是 3' },
+      { m:'GET', p:'/orders?limit=1&offset=2', n:'跳过前两条，拿到 id=3' },
+      { m:'GET', p:'/orders?limit=0', n:'422' },
+      { m:'GET', p:'/orders?limit=101', n:'422' },
+      { m:'GET', p:'/orders?offset=-1', n:'422' },
+      { m:'GET', p:'/orders?status=unknown', n:'422' }
+    ],
+    starter:'from typing import Literal\n\nfrom fastapi import FastAPI, Query\n\napp = FastAPI(title="订单服务")\n\nORDERS = [\n    {"id": 1, "sku": "KB-100", "status": "paid"},\n    {"id": 2, "sku": "MS-200", "status": "pending"},\n    {"id": 3, "sku": "CB-300", "status": "paid"},\n]\n\n\n@app.get("/orders")\ndef list_orders(status=None, limit=20, offset=0):\n    """返回 {"total": 过滤后的总数, "items": 本页数据}。"""\n    pass\n',
+    hints:[
+      '先把筛选取出来：rows = ORDERS if status is None else [o for o in ORDERS if o["status"] == status]',
+      '再加约束：status: Literal["paid", "pending", "refunded"] | None = None，limit: int = Query(20, ge=1, le=100)，offset: int = Query(0, ge=0)',
+      '最后 return {"total": len(rows), "items": rows[offset:offset + limit]}——total 用过滤后的 len(rows)，不是 len(items)'
+    ]
+  },
+  {
+    id:'13-3', ch:13, title:'请求体与响应模型 · 出去什么也要管',
+    goal:'入参校验交给 Field，出参裁剪交给 response_model',
+    brief:'前面两个接口都只读，创建订单要收一份 JSON。FastAPI 用 Pydantic 模型收：字段上的 <code>Field(min_length=3, ge=1, gt=0)</code> 就是契约，前端传错立刻 422，函数体里一行 if 都不用写。'
+        + '<br><br>但真正容易出事的是<b>出方向</b>。你的处理函数 return 的字典里往往带着内部字段——成本价、内部备注。'
+        + '不声明 <code>response_model</code>，它们就原样吐给调用方。本关的判据里专门有一条：多传的 <code>cost</code> 不许出现在响应里。'
+        + '<br><br>还有状态码：创建资源用 <b>201</b>，不是 200。',
+    mode:'server', expect:[],
+    apiList:[
+      { m:'POST', p:'/orders', n:'201，字段恰好 id / sku / qty / amount' },
+      { m:'POST', p:'/orders', n:'amount = 2×75.5−0.5 = 150.5（四舍五入到分）' },
+      { m:'POST', p:'/orders', n:'qty=0 → 422；price=-1 → 422；sku="AB" → 422' },
+      { m:'POST', p:'/orders', n:'请求里多传 cost，响应里不许有 cost' }
+    ],
+    starter:'from fastapi import FastAPI\nfrom pydantic import BaseModel, Field\n\napp = FastAPI(title="订单服务")\n\n\nclass OrderIn(BaseModel):\n    """入参：sku 至少 3 个字符、qty >= 1、price > 0、coupon 默认 0。"""\n    pass\n\n\nclass OrderOut(BaseModel):\n    """出参：只要 id / sku / qty / amount。"""\n    pass\n\n\n@app.post("/orders")\ndef create_order(payload: OrderIn):\n    """amount = qty * price - coupon，四舍五入到两位。"""\n    pass\n',
+    hints:[
+      '两个类的 pass 换成字段声明：sku: str = Field(min_length=3)、qty: int = Field(ge=1)、price: float = Field(gt=0)、coupon: float = 0',
+      'OrderOut 只写 id: int、sku: str、qty: int、amount: float —— 别把 cost 写进去',
+      '装饰器改成 @app.post("/orders", response_model=OrderOut, status_code=201)，函数里算 amount = round(payload.qty * payload.price - payload.coupon, 2)'
+    ]
+  },
+  {
+    id:'13-4', ch:13, title:'依赖注入 · 认证只写一遍',
+    goal:'用 Depends 复用认证，用 exception_handler 统一错误出口',
+    brief:'每个需要登录的接口都抄一遍 token 判断，迟早抄漏一个。FastAPI 的答案叫<b>依赖注入</b>：把认证写成一个函数，接口上用 <code>Depends(require_token)</code> 挂上去，框架在调用你的函数之前先把它跑完，不通过就直接返回，你的函数根本不会执行。'
+        + '<br><br>这里有<b>一个几乎人人都会踩的坑</b>：<code>x_token: str = Header(...)</code> 写成必填，没带这个头时 FastAPI 返回的是 <b>422</b>（参数缺失），而不是你要的 <b>401</b>。'
+        + '要 401，得写成 <code>Header(default=None)</code>，再自己判断。对前端来说 401 和 422 是两件事：一个跳登录页，一个是弹参数错误提示。'
+        + '<br><br>最后把所有 <code>raise HTTPException</code> 收敛成一种格式：<code>{"error": {"code", "message"}}</code>。'
+        + '靠 <code>@app.exception_handler(HTTPException)</code>，别在每个函数里手写 JSONResponse。',
+    mode:'server', expect:[],
+    apiList:[
+      { m:'GET', p:'/orders/1', n:'不带 X-Token → 401（不是 422）' },
+      { m:'GET', p:'/orders/1', n:'X-Token: wrong → 401' },
+      { m:'GET', p:'/orders/1', n:'X-Token: demo-token → 200 {"id":1,"status":"paid"}' },
+      { m:'GET', p:'/orders/99', n:'token 正确但订单不存在 → 404' },
+      { m:'—', p:'401 与 404 的 body', n:'都是 {"error":{"code","message"}}，顶层没有 detail' }
+    ],
+    starter:'from fastapi import Depends, FastAPI, Header, HTTPException\nfrom fastapi.responses import JSONResponse\n\nTOKEN = "demo-token"\n\nORDERS = {\n    1: {"id": 1, "status": "paid"},\n    2: {"id": 2, "status": "pending"},\n}\n\napp = FastAPI(title="订单服务")\n\n\n@app.exception_handler(HTTPException)\nasync def unify_error(request, exc):\n    """把所有 HTTPException 渲染成 {"error": {"code", "message"}}。"""\n    pass\n\n\ndef require_token(x_token=None):\n    """依赖：token 不对就抛 401。"""\n    pass\n\n\n@app.get("/orders/{order_id}")\ndef get_order(order_id: int, token: str = Depends(require_token)):\n    """订单不存在要 404（用 raise HTTPException，别 return 一个 dict）。"""\n    pass\n',
+    hints:[
+      'unify_error 里 return JSONResponse(status_code=exc.status_code, content={"error": {"code": exc.status_code, "message": exc.detail}})',
+      'require_token 的签名改成 x_token: str | None = Header(default=None)，里面 if x_token != TOKEN: raise HTTPException(401, "token 无效或缺失")',
+      'get_order 里 order = ORDERS.get(order_id)；为空就 raise HTTPException(404, "订单不存在")，否则 return order'
+    ]
   }
 ];
 
@@ -1422,6 +1687,28 @@ const THEORY = {
     { h:'main 守卫：导入不执行，直接运行才执行', p:'<code>if __name__ == "__main__":</code> 让文件既能被别的脚本 <code>import</code>（不做事），又能被命令行直接跑（做事）。', code:'def main(argv=None):\n    print("干活")\n    return 0\nif __name__ == "__main__":\n    main()' },
     { h:'分层：入口 / 处理 / 落盘 / 日志', p:'<code>main()</code> 只管参数与流程，<code>process()</code> 只算业务，写文件单独一步。任何一层都能单独测。', code:'import json\nfrom pathlib import Path\ndef process(data, limit):\n    rows = data[:limit]\n    return {"orders": len(rows), "revenue": sum(r["amount"] for r in rows)}\nprint(process([{"amount": 100}, {"amount": 50}], 2))' },
     { h:'交付清单', p:'能带参数跑、有 --help、有日志、有测试、失败有非零退出码、可重复运行、有 README 和 requirements.txt——这才是一个「脚本」而不是一段代码。', code:'import argparse\np = argparse.ArgumentParser(description="每日渠道报表")\np.add_argument("--input", required=True)\np.add_argument("--output", required=True)\np.add_argument("--limit", type=int, default=10)\nprint(p.format_help()[:120])' }
+  ],
+
+  /* ---------- 第十二章：织网之厅 ---------- */
+  '12-1':[
+    { h:'yield 是「暂停并交出一个」', p:'普通 return 交出值就结束了。生成器遇到 <code>yield</code> 暂停，把值交出去，下次 <code>next()</code> 从暂停处接着跑。所以内存里永远只有一条。', code:'def count_up(n):\n    i = 0\n    while i < n:\n        yield i\n        i += 1\ng = count_up(3)\nprint(g)\nprint(next(g), next(g), next(g))' },
+    { h:'for 就是在自动 next()', p:'<code>for x in gen:</code> 相当于反复 <code>next()</code> 直到 StopIteration。写起来和列表一样，但不会先造出整个列表。', code:'def squares(n):\n    for i in range(n):\n        yield i * i\nprint(sum(squares(100000)))\nprint(sum([i * i for i in range(100000)]))' },
+    { h:'读大文件用 for line in f', p:'文件对象本身就是迭代器，逐行吐出。<code>readlines()</code> 会一次性造出几十万个字符串，行数一多就被 OOM 杀掉。', code:'from pathlib import Path\np = Path("big.csv")\np.write_text("a,1\\nb,2\\n", encoding="utf-8")\ntotal = 0\nwith open(p, encoding="utf-8") as f:\n    next(f)  # 跳过表头\n    for line in f:\n        k, v = line.strip().split(",")\n        total += float(v)\nprint(total)' }
+  ],
+  '12-2':[
+    { h:'函数是一等公民，可以当参数传', p:'装饰器本质就是「接收函数、返回新函数」的普通函数。<code>@timed</code> 只是 <code>f = timed(f)</code> 的语法糖。', code:'def shout(fn):\n    def wrapper(*a, **k):\n        return str(fn(*a, **k)).upper()\n    return wrapper\n\n@shout\ndef hi(n):\n    return "hello " + n\nprint(hi("ann"))' },
+    { h:'functools.wraps 保住身份', p:'不加 wraps，被装饰函数的 <code>__name__</code> 会变成 wrapper，日志、traceback、文档全乱。', code:'import functools\ndef timed(fn):\n    @functools.wraps(fn)\n    def wrapper(*a, **k):\n        return fn(*a, **k)\n    return wrapper\n\n@timed\ndef pay(x):\n    return x\nprint(pay.__name__)' },
+    { h:'try/finally 保证出错也留痕', p:'只写 <code>t1 = ...; r = fn(); t2 = ...</code>，函数一抛异常这条记录就没了。用 finally，成功失败都记一条。', code:'import time\nCALLS = []\ndef timed(fn):\n    def wrapper(*a, **k):\n        t0 = time.time()\n        try:\n            return fn(*a, **k)\n        finally:\n            CALLS.append((fn.__name__, round((time.time()-t0)*1000, 2)))\n    return wrapper\n\n@timed\ndef boom():\n    raise ValueError("x")\ntry:\n    boom()\nexcept ValueError:\n    pass\nprint(CALLS)' }
+  ],
+  '12-3':[
+    { h:'\\d 是数字，{} 是次数', p:'<code>\\d{8}</code> 表示正好 8 个数字。写 <code>\\d+</code> 会把后面的数字一起吞掉，单号就切歪了。', code:'import re\nprint(re.findall(r"SO-\\d{8}-\\d{4}", "SO-20240317-0042 SO-20240318-0007"))\nprint(re.findall(r"SO-\\d+-\\d+", "SO-20240317-0042x99"))' },
+    { h:'分组用 ()，替换用 \\1 \\2', p:'括号把要保留的部分圈出来，<code>re.sub</code> 里用 <code>\\1</code> 引用第一组。打码就是「保留头尾、中间换掉」。', code:'import re\nt = "联系 13812348000"\nprint(re.sub(r"(1[3-9]\\d)\\d{4}(\\d{4})", r"\\1****\\2", t))\nprint(re.findall(r"(1[3-9]\\d)\\d{4}(\\d{4})", t))' },
+    { h:'去重还要保序，用 dict.fromkeys', p:'<code>list(set(...))</code> 会打乱顺序，报表顺序一变就对不上。<code>dict.fromkeys</code> 既去重又保序。', code:'nums = ["A", "B", "A", "C"]\nprint(list(set(nums)))\nprint(list(dict.fromkeys(nums)))' }
+  ],
+  '12-4':[
+    { h:'async def 调用后什么也没发生', p:'调用协程函数只是造出一个协程对象，必须 <code>await</code> 或交给事件循环才真正执行。忘了 await 是最常见的 bug。', code:'import asyncio\nasync def hi():\n    return "done"\nc = hi()\nprint(type(c).__name__)' },
+    { h:'等待时切走，才叫并发', p:'<code>await asyncio.sleep()</code> 会让出控制权，事件循环趁机去跑别的协程。所以「等 IO」越多，并发收益越大；纯 CPU 计算没有收益（那要用多进程）。', code:'import asyncio, time\nasync def one(i):\n    await asyncio.sleep(0.05)\n    return i\nasync def main():\n    return await asyncio.gather(*[one(i) for i in range(10)])\nprint("gather 一次交出去，10 个 50ms 的等待总共约 50ms，不是 500ms")' },
+    { h:'gather 保序，且异常默认向外抛', p:'<code>asyncio.gather(*coros)</code> 的返回顺序与传入顺序一致。某个协程抛异常时默认整体失败；要单独收集用 <code>return_exceptions=True</code>。', code:'import asyncio\nasync def bad():\n    raise ValueError("接口 500")\nasync def ok():\n    return "ok"\nprint("return_exceptions=True 时，异常会放进结果列表里，不影响其它请求")' }
   ],
 
   '1-1':[
@@ -1599,6 +1886,28 @@ const THEORY = {
     { h:'你手上的数据', p:'<code>orders.csv</code> 共 <b>2400 笔订单</b>，字段：订单号、用户、商品、类目（数码/服饰/食品/家居/美妆）、渠道（App/小程序/PC/线下）、城市、下单时间、数量、单价、金额、状态（已完成 / 已退款 / 待发货）。<br>下面这段可以先跑一下，看看数据长什么样——这一关没有标准答案，但<u>先摸清楚数据</u>永远是第一步。', code:'import pandas as pd\ndf = pd.read_csv("data/orders.csv")\nprint(df.shape)\nprint(df["status"].value_counts())\nprint(df["category"].value_counts())', packages:['pandas'], data:['data/orders.csv'] },
     { h:'运营总监要的四件事', p:'<b>1. 整体盘子</b>：GMV（已完成订单总额）、订单数、客单价、退款率。<br><b>2. 类目结构</b>：哪个类目在撑收入，哪个类目的客单价最高。<br><b>3. 月度走势</b>：1~6 月每月 GMV，是涨是跌。<br><b>4. 一张图</b>：把月度走势画出来，会上要用。<br><br>注意两个坑：<b>客单价的分母是已完成订单数</b>，不是全部订单；<b>退款率的分母是全部订单数</b>。分子分母口径不统一，报出来的数就是错的。' },
     { h:'交付格式', p:'把结果装进一个字典，键名必须精确：<br><br><code>gmv</code> 数字 · <code>orders</code> 整数 · <code>aov</code> 数字（2 位小数）· <code>refund_rate</code> 数字（4 位小数）· <code>top_category</code> 字符串（GMV 最高的类目）· <code>best_aov_category</code> 字符串（客单价最高的类目）· <code>monthly</code> 长度 6 的列表<br><br>另外把图画出来赋给 <code>fig</code>。<b>top_category 和 best_aov_category 不是同一个</b>——GMV 第一的不一定是最赚钱的单笔，这两个要分开算。' }
+  ],
+
+  /* ---------- 第十三章：接口之门 ---------- */
+  '13-1':[
+    { h:'脚本跑完就退出，服务一直在等', p:'你写过的脚本是「执行完就结束」；接口服务是<b>常驻进程</b>，启动后挂在那里等别人发请求。FastAPI 里最常跑的一句是 <code>uvicorn app:app --reload</code>——<code>app:app</code> 意思是「文件 app.py 里那个叫 app 的变量」。本关不用你起服务，判分器拿这个 app 直接发请求；但真上班第一件事就是把这句跑通。' },
+    { h:'路径参数的类型标注就是校验', p:'<code>@app.get("/orders/{order_id}")</code> 配 <code>def get_order(order_id: int)</code>，框架会把 URL 里的那一段转成 int，转不动就返回 <b>422</b>，你的函数根本不会被调用。<br>写成 <code>str</code> 也能跑，但脏值就进到你函数里了——你后面每处用它都要自己判一次。能用类型声明表达的东西，别写成 if。' },
+    { h:'为什么这一关在服务端跑', p:'浏览器里的 Python（Pyodide）没装 FastAPI：ASGI 应用需要事件循环，而 Pyodide 的主循环归浏览器管，<code>asyncio.run</code> 进去就报错；而且 <code>pydantic-core</code> 是编译过的二进制，不能现装。<br>所以这四关改成「服务端真跑」：判分器在你本机的 <code>api-lab/venv</code> 里装配你的 app，用 <code>TestClient</code> 真发 GET/POST。因此页面必须用启动器打开（双击 index.html 没有后端接口）。' }
+  ],
+  '13-2':[
+    { h:'路径参数定位资源，查询参数修饰结果', p:'<code>/orders/7</code> 里的 7 是<b>资源标识</b>，路径的一部分；<code>/orders?status=paid&amp;limit=20</code> 里的两个是<b>修饰条件</b>，不影响「访问哪个资源」。<br>分错了会很别扭：把筛选条件塞进路径，就会写出 <code>/orders/paid/20/0</code> 这种既难读又难改的 URL。' },
+    { h:'把边界写进签名，而不是写在函数体里', p:'<code>limit: int = Query(20, ge=1, le=100)</code> 一句话，同时拿到三样东西：默认值、上下界、自动文档。<br>手写 <code>if limit &gt; 100: return 400</code> 也能挡，但丢了三样：<code>/docs</code> 里看不到边界、错误返回格式和别处不一致、每个接口都要抄一遍。<br>枚举同理：<code>Literal["paid","pending","refunded"]</code> 比「函数里判一下」可靠得多。' },
+    { h:'total 是过滤后、分页前的总数', p:'分页接口的返回必须包含两个数：<b>total</b>（符合筛选条件的总条数）和 <b>items</b>（本页这几条）。<br>写成 <code>len(items)</code> 就变成「本页有几条」，前端按 <code>ceil(total/limit)</code> 算页数时永远只算出 1 页。<br>这是数据分析/后端协作里最常吵的一个 bug，本关专门有一条判据盯着它。' }
+  ],
+  '13-3':[
+    { h:'入参模型：Field 的三条常用约束', p:'<code>Field(min_length=3)</code> 管字符串长度，<code>Field(ge=1)</code> 管「大于等于」（含 1），<code>Field(gt=0)</code> 管「大于」（不含 0）。<br>价格用 <code>gt=0</code> 而不是 <code>ge=0</code>：0 元订单不该被放过。<br>字段默认值也是契约的一部分——<code>coupon: float = 0</code> 意味着「不传就是不打折」。' },
+    { h:'response_model 决定「出去什么」', p:'入参模型管进门，出参模型管出门。函数 return 的字典里多带了 <code>cost</code>、<code>internal_note</code>，只要声明了 <code>response_model=OrderOut</code>，这些字段会被<b>静默裁掉</b>。<br>这是白名单思路：只列出该给的，其余一律不给。反过来「记得删掉敏感字段」是黑名单思路，迟早漏一个——成本价、内部备注、别人的手机号都是这么漏出去的。' },
+    { h:'状态码是给程序看的，不是给人看的', p:'<b>200</b> 读成功 · <b>201</b> 创建成功（该带 Location 或返回体）· <b>204</b> 成功但没内容（删除常用）· <b>400/422</b> 参数不对 · <b>401</b> 没认证 · <b>403</b> 认证了但没权限 · <b>404</b> 资源不存在 · <b>409</b> 冲突。<br>调用方是靠状态码分支的：创建返回 200 的接口，前端要额外判断 body 才知道成没成功，多一层容易错的地方。' }
+  ],
+  '13-4':[
+    { h:'依赖注入：框架先跑它，再跑你的函数', p:'<code>def get_order(order_id: int, token: str = Depends(require_token))</code>，框架会先调 <code>require_token</code>，把返回值当参数传进来；依赖里抛了异常，你的函数<b>根本不会执行</b>。<br>好处是认证逻辑只写一遍、还能被测试替换（<code>app.dependency_overrides</code>）。二十个接口各抄一遍 token 判断，迟早漏一个——漏的那个就是事故。' },
+    { h:'Header(...) 必填会给你 422，不是 401', p:'<code>x_token: str = Header(...)</code> 是「这个头必须存在」。没带时 FastAPI 认为参数缺失，返回 <b>422</b>，你函数里那句 <code>raise HTTPException(401)</code> 没机会执行。<br>要 401，得写 <code>Header(default=None)</code>，把「缺失」和「不正确」都收进你自己那句判断里。<br>对前端来说这是两件事：401 跳登录页，422 弹字段错误。弄错了用户会看到一个莫名其妙的提示。' },
+    { h:'统一错误格式：一个出口，不是每个函数各写一遍', p:'<code>@app.exception_handler(HTTPException)</code> 接管所有 <code>raise HTTPException(...)</code>，统一渲染成 <code>{"error": {"code", "message"}}</code>。<br>不接管的默认格式是 <code>{"detail": "..."}</code>——能用，但一旦你想加错误码、加 traceId、加多语言，就得改每一处。<br>前端只认一种结构，才不用为每个接口写一套解析。' }
   ]
 };
 
@@ -1811,6 +2120,9 @@ const PREAMBLE = [
   '__g = {"__name__": "__main__"}',
   'try:',
   '    sys.stdout = __buf',
+  '    # 判题里要能读到学生源码（「有没有真的用 gather」这类结构题靠 AST 查），',
+  '    # 存成 __src__，避免和普通变量撞名',
+  '    __g["__src__"] = __src',
   '    sys.settrace(__guard)',
   '    exec(compile(__src, "<你的代码>", "exec"), __g)',
   'except TimeoutError as e:',
@@ -2686,13 +2998,20 @@ function renderLevel(){
     const shown = (lv.dataFiles || []).filter(f => !/\.(otf|ttf|woff2?)$/i.test(f));
     html += '<div class="expect"><h4>数据文件（已挂到工作目录）</h4><pre>'
           + escHtml(shown.join('\n')) + '</pre></div>';
+  }else if(lv.mode === 'server'){
+    html += '<div class="expect"><h4>判分器会逐条发的请求（全部通过才算过）</h4><div class="api-list">'
+          + (lv.apiList || []).map(a =>
+              '<div class="api-row"><b class="m m-' + a.m.toLowerCase() + '">' + a.m + '</b>'
+              + '<code>' + escHtml(a.p) + '</code>'
+              + '<span>' + escHtml(a.n) + '</span></div>').join('')
+          + '</div></div>';
   }else{
     html += '<div class="expect"><h4>期望输出</h4><pre>' + escHtml(lv.expect.join('\n')) + '</pre></div>';
   }
   html += '<div id="hintSlot"></div>';
 
   html += '<div class="toolbar">';
-  html += '<button class="btn run" id="runBtn">▶ 运行 <kbd>Ctrl</kbd><kbd>↵</kbd></button>';
+  html += '<button class="btn run" id="runBtn">' + runLabel(lv) + '</button>';
   html += '<button class="btn" id="hintBtn">💡 提示</button>';
   html += '<button class="btn ghost" id="resetBtn">重置代码</button>';
   html += '<span class="spacer"></span>';
@@ -2832,11 +3151,126 @@ function bindEditor(lv){
 function resetTerm(lv){
   verdictEl.className = 'verdict';
   verdictEl.textContent = '未运行';
+  if(lv && lv.mode === 'server'){
+    termEl.innerHTML = '<div class="ph">这一关<b>在服务端判</b>：点「提交并实测」，判分器会把你的代码交给本机的 FastAPI 环境，'
+      + '真装配一个应用、真发一遍请求。<br>浏览器里的 Python 没有 FastAPI，所以这里不跑 Pyodide。'
+      + '<br><br>判分要几秒，别以为卡住了。快捷键 <kbd>Ctrl</kbd>+<kbd>Enter</kbd> 一样能提交。</div>';
+    return;
+  }
   const tip = (lv && lv.mode === 'check')
     ? '这一关<b>判的是数据结构</b>，不是打印内容——把该算的结果放进 <code>result</code> 变量就行，print 不 print 都不影响。'
     : '判题方式是<b>比对标准输出</b>——程序打印的内容一字不差才算过。';
   termEl.innerHTML = '<div class="ph">点「运行」执行你的 Python 代码。<br>' + tip
     + '<br><br>快捷键 <kbd>Ctrl</kbd>+<kbd>Enter</kbd> 运行。</div>';
+}
+
+/* ---------- 服务端关卡：提交 → 真跑 → 逐条回执 ---------- */
+async function runServerSide(lv, code){
+  if(running) return;
+  running = true;
+  const btn = document.getElementById('runBtn');
+  btn.disabled = true;
+  btn.innerHTML = '⏳ 提交中…';
+
+  if(window.matchMedia('(max-width:1180px)').matches){
+    const rp = document.querySelector('.right');
+    if(rp) rp.classList.remove('collapsed');
+  }
+
+  verdictEl.className = 'verdict'; verdictEl.textContent = '运行中';
+  termEl.innerHTML = '<div class="ph">正在服务端装配你的 app，再用 TestClient 逐条发请求…</div>';
+  persistCode(lv.id, code);
+
+  let data = null, netErr = null, httpStatus = 0;
+  try{
+    const resp = await fetch('/api/api-lab/grade', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ level: lv.id, code: code })
+    });
+    httpStatus = resp.status;
+    const text = await resp.text();
+    try{ data = JSON.parse(text); }
+    catch(e){ netErr = new Error('服务端返回的不是 JSON（HTTP ' + resp.status + '）：' + text.slice(0, 120)); }
+  }catch(e){
+    netErr = e;
+  }
+
+  running = false;
+  btn.disabled = false;
+  btn.innerHTML = runLabel(lv);
+
+  if(netErr){
+    verdictEl.className = 'verdict bad';
+    verdictEl.textContent = '连不上判分服务';
+    termEl.innerHTML = '<div class="rescard bad"><div class="ttl">⚠ 这一关需要后端</div>'
+      + '<div style="font-size:12.5px;color:#ffb3ae;line-height:1.85;font-family:var(--sans)">'
+      + '第 13 章要在本机起一个小服务才能判分（浏览器里没有 FastAPI）。<br>'
+      + '关掉这个页面，用 <b>启动游戏.bat</b> 或命令行 <code>python serve.py</code> 重新打开——'
+      + '直接双击 index.html 是没有 /api 接口的。'
+      + '<div style="margin-top:8px;color:var(--ink3);font-size:11.5px">' + escHtml(String(netErr.message || netErr)) + '</div>'
+      + '</div></div>';
+    return;
+  }
+
+  if(data.infra){
+    verdictEl.className = 'verdict bad';
+    verdictEl.textContent = '环境没装好';
+    termEl.innerHTML = '<div class="rescard bad"><div class="ttl">⚠ 服务端缺 FastAPI</div>'
+      + '<div style="font-size:12.5px;color:#ffb3ae;line-height:1.85;font-family:var(--sans)">'
+      + escHtml(data.message) + '<br><br>在 <code>api-lab</code> 目录里跑一次：<br>'
+      + '<code>python -m venv venv</code><br><code>venv\\Scripts\\pip install -r requirements.txt</code>'
+      + '</div></div>';
+    return;
+  }
+
+  if(httpStatus === 429 || (data.message && /上一次判分/.test(data.message))){
+    verdictEl.className = 'verdict';
+    verdictEl.textContent = '忙';
+    termEl.innerHTML = '<div class="ph">' + escHtml(data.message) + '</div>';
+    return;
+  }
+
+  renderServerResult(lv, data);
+}
+
+function renderServerResult(lv, data){
+  const rows = data.checks || [];
+  const listHtml = rows.length
+    ? '<div style="margin-top:10px">' + rows.map(c =>
+        '<div class="api-chk ' + (c.pass ? 'ok' : 'bad') + '">'
+        + '<i>' + (c.pass ? '✓' : '✕') + '</i>'
+        + '<div>' + escHtml(c.label)
+        + (c.pass || !c.detail ? '' : '<span class="dt">' + escHtml(c.detail) + '</span>')
+        + '</div></div>').join('') + '</div>'
+    : '';
+
+  if(data.pass){
+    verdictEl.className = 'verdict ok';
+    verdictEl.textContent = '通过';
+    termEl.innerHTML = '<div class="rescard ok"><div class="ttl">✓ 通过！' +
+      (typeof data.score === 'number' ? '（' + data.score + ' 分）' : '') + '</div>'
+      + '<div style="font-size:12.5px;color:#a9e5b8;font-family:var(--sans);line-height:1.7">'
+      + escHtml(data.message || '') + '</div>' + listHtml + '</div>';
+    state.cleared[lv.id] = true;
+    saveState();
+    renderNav(); renderProgress();
+    showWin(lv);
+    return;
+  }
+
+  verdictEl.className = 'verdict bad';
+  verdictEl.textContent = '未通过';
+  const msg = String(data.message || '');
+  const isTrace = /第 \d+ 行出错|Traceback|导入阶段就报错/.test(msg);
+  termEl.innerHTML = '<div class="rescard bad"><div class="ttl">✕ 还没过' +
+    (typeof data.score === 'number' ? '（' + data.score + ' 分）' : '') + '</div>'
+    + (isTrace
+        ? '<pre style="margin:0;font-family:var(--mono);font-size:12px;line-height:1.7;white-space:pre-wrap;word-break:break-word;color:#ffb3ae">'
+          + escHtml(msg) + '</pre>'
+        : '<div style="font-size:12.5px;color:#ffb3ae;line-height:1.8;font-family:var(--sans)">'
+          + escHtml(msg) + '</div>')
+    + listHtml + '</div>';
 }
 
 function normalize(text){
@@ -2895,6 +3329,10 @@ function explainError(err){
   return null;
 }
 
+function runLabel(lv){
+  return (lv && lv.mode === 'server') ? '▶ 提交并实测' : '▶ 运行 <kbd>Ctrl</kbd><kbd>↵</kbd>';
+}
+
 async function runCurrent(lv){
   if(running) return;
   const ta = document.getElementById('code');
@@ -2905,6 +3343,8 @@ async function runCurrent(lv){
     termEl.innerHTML = '<div class="ph">编辑器还是空的，先写点代码。点「提示」可以看第一句该写什么。</div>';
     return;
   }
+  // 服务端关卡：浏览器里没有 FastAPI，交给本机子进程真跑
+  if(lv.mode === 'server'){ return runServerSide(lv, code); }
   running = true;
   btn.disabled = true;
   btn.innerHTML = '⏳ 运行中…';
@@ -2960,7 +3400,7 @@ async function runCurrent(lv){
 
   running = false;
   btn.disabled = false;
-  btn.innerHTML = '▶ 运行 <kbd>Ctrl</kbd><kbd>↵</kbd>';
+  btn.innerHTML = runLabel(lv);
 
   if(fatal){
     const ftype = fatal.pqType || 'ENGINE';

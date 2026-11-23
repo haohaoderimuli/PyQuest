@@ -164,8 +164,13 @@ console.log('='.repeat(58));
 
 let pass = 0;
 const failures = [];
+const serverLevels = [];
 
 for (const lv of LEVELS) {
+  // 服务端关卡（第 13 章）判的是真 HTTP 行为，Pyodide 里没有 FastAPI，
+  // 由 tests/check_api.py 在 api-lab/venv 里跑，这里跳过。
+  if (lv.mode === 'server') { serverLevels.push(lv.id); continue; }
+
   const code = SOLUTIONS[lv.id];
   if (typeof code !== 'string') {
     console.log('  ✗ ' + lv.id + '  没有参考解');
@@ -222,6 +227,7 @@ for (const w of WRONG_CASES) {
   const lid = w.idAlias || w.id;
   const lv = LEVELS.find(l => l.id === lid);
   if (!lv) { console.log('  ? ' + lid + '  关卡不存在'); continue; }
+  if (lv.mode === 'server') continue;
 
   const isCheck = lv.mode === 'check';
   if (isCheck) await prepareLevel(lv);
@@ -268,9 +274,13 @@ for (const src of ['print("before")\nexit()', 'import sys\nprint("before")\nsys.
 
 /* ---------- 6. 汇总 ---------- */
 
+const browserLevels = LEVELS.length - serverLevels.length;
 console.log('');
 console.log('='.repeat(58));
-console.log('参考解 ' + pass + '/' + LEVELS.length + ' 通过，反例 ' + caught + '/' + WRONG_CASES.length + ' 拦下');
+console.log('参考解 ' + pass + '/' + browserLevels + ' 通过（浏览器可跑），反例 ' + caught + '/' + WRONG_CASES.length + ' 拦下');
+if (serverLevels.length) {
+  console.log('服务端关卡 ' + serverLevels.length + ' 关（' + serverLevels.join(' / ') + '）不在本轮，跑 tests/check_api.py');
+}
 
 if (failures.length) {
   console.log('失败项：');

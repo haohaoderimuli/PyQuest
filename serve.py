@@ -9,10 +9,13 @@ PyQuest 本地启动器。
 浏览器会拒绝加载 WebAssembly 模块。这里强制改成 text/javascript。
 """
 import http.server
+import json
 import mimetypes
 import os
 import socket
+import subprocess
 import sys
+import tempfile
 import threading
 import webbrowser
 
@@ -81,6 +84,9 @@ def is_allowed(raw_path):
             ext in TOOLKIT_EXT or name in TOOLKIT_NAMES or name in ASSIGNMENT_NAMES
             or (parts[0] in ('assignment', 'joint') and ext == '.json')):
         return True
+    # api-lab 里只放行两份给人看的文档；判分器与参考解（solutions/、wrong/）不下载
+    if parts[0] == 'api-lab' and len(parts) == 2 and name in ('README.md', 'requirements.txt'):
+        return True
     return False
 
 # 大文件长缓存：这些是固定版本的运行时和依赖，刷新时没必要重读 50MB
@@ -103,18 +109,147 @@ def pick_port(start=8770, tries=20):
     return None
 
 
+# ---------------------------------------------------------------- FastAPI 关卡判分
+# 浏览器里的 Pyodide 没有 FastAPI（ASGI 要事件循环，还不能联网装 pydantic-core），
+# 所以第 13 章的四关走「本机子进程真跑」：api-lab/venv 里装 fastapi + httpx，
+# 判分器导入学生写的 app，用 TestClient 真发请求。
+API_LAB = os.path.join(ROOT, 'api-lab')
+API_LEVELS = {'13-1', '13-2', '13-3', '13-4'}
+MAX_CODE_BYTES = 200 * 1024
+GRADE_TIMEOUT = 45
+GRADE_LOCK = threading.Lock()
+READY_CACHE = {}
+
+
+def venv_python():
+    for rel in (('Scripts', 'python.exe'), ('bin', 'python')):
+        p = os.path.join(API_LAB, 'venv', *rel)
+        if os.path.exists(p):
+            return p
+    return None
+
+
+def api_lab_ready():
+    """venv 在不在、fastapi 装没装。结果缓存，免得每次点运行都探一遍。"""
+    if 'ready' in READY_CACHE:
+        return READY_CACHE['ready']
+    py = venv_python()
+    if not py:
+        READY_CACHE['ready'] = (False, '没找到 api-lab/venv。先在 api-lab 里执行：python -m venv venv 然后 pip install -r requirements.txt')
+        return READY_CACHE['ready']
+    try:
+        cp = subprocess.run([py, '-c', 'import fastapi, httpx; print(fastapi.__version__)'],
+                            capture_output=True, text=True, encoding='utf-8', errors='replace',
+                            timeout=30, creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+        if cp.returncode == 0:
+            READY_CACHE['ready'] = (True, cp.stdout.strip())
+        else:
+            READY_CACHE['ready'] = (False, 'venv 里没有 fastapi：%s' % (cp.stderr or '').strip()[-160:])
+    except Exception as exc:                                   # noqa: BLE001
+        READY_CACHE['ready'] = (False, '探测 venv 失败：%s' % exc)
+    return READY_CACHE['ready']
+
+
 class Handler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
+        if self.path.split('?', 1)[0] == '/api/api-lab/status':
+            return self._api_status()
         if not is_allowed(self.path):
             self.send_error(404, "Not Found")
             return
         super().do_GET()
+
+    def do_POST(self):
+        if self.path.split('?', 1)[0] == '/api/api-lab/grade':
+            return self._api_grade()
+        self.send_error(404, "Not Found")
 
     def do_HEAD(self):
         if not is_allowed(self.path):
             self.send_error(404, "Not Found")
             return
         super().do_HEAD()
+
+    # ------------------------------ 判分接口
+    def _send_json(self, code, obj):
+        body = json.dumps(obj, ensure_ascii=False).encode('utf-8')
+        self.send_response(code)
+        self.send_header('Content-Type', 'application/json; charset=utf-8')
+        self.send_header('Content-Length', str(len(body)))
+        self.send_header('Cache-Control', 'no-store')
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _api_status(self):
+        ok, info = api_lab_ready()
+        self._send_json(200, {'ready': ok, 'info': info, 'levels': sorted(API_LEVELS)})
+
+    def _api_grade(self):
+        length = int(self.headers.get('Content-Length') or 0)
+        if length <= 0:
+            return self._send_json(400, {'pass': False, 'score': 0, 'message': '请求体是空的'})
+        if length > MAX_CODE_BYTES:
+            return self._send_json(413, {'pass': False, 'score': 0,
+                                         'message': '代码太长了（上限 %d KB）' % (MAX_CODE_BYTES // 1024)})
+        try:
+            payload = json.loads(self.rfile.read(length).decode('utf-8'))
+        except Exception:                                     # noqa: BLE001
+            return self._send_json(400, {'pass': False, 'score': 0, 'message': '请求体不是合法 JSON'})
+
+        level = str(payload.get('level') or '')
+        code = payload.get('code') or ''
+        if level not in API_LEVELS:
+            return self._send_json(404, {'pass': False, 'score': 0, 'message': '未知关卡 %s' % level})
+        if not isinstance(code, str) or not code.strip():
+            return self._send_json(400, {'pass': False, 'score': 0, 'message': '代码是空的'})
+
+        ok, info = api_lab_ready()
+        if not ok:
+            return self._send_json(200, {'pass': False, 'score': 0, 'infra': True,
+                                         'message': '服务端判分环境没准备好：' + info})
+
+        if not GRADE_LOCK.acquire(blocking=False):
+            return self._send_json(429, {'pass': False, 'score': 0,
+                                         'message': '上一次判分还没结束（每次要真跑一遍你的应用），稍等几秒再点'})
+        workdir = os.path.join(API_LAB, '.work')
+        tmp = None
+        try:
+            os.makedirs(workdir, exist_ok=True)
+            fd, tmp = tempfile.mkstemp(suffix='.py', prefix='student-', dir=workdir)
+            with os.fdopen(fd, 'w', encoding='utf-8') as fh:
+                fh.write(code)
+            env = dict(os.environ, PYTHONIOENCODING='utf-8', PYTHONUTF8='1')
+            cp = subprocess.run(
+                [venv_python(), os.path.join(API_LAB, 'run_checks.py'), '--level', level, '--file', tmp],
+                capture_output=True, text=True, encoding='utf-8', errors='replace',
+                timeout=GRADE_TIMEOUT, cwd=API_LAB, env=env,
+                creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0),
+            )
+            out = (cp.stdout or '').strip()
+            try:
+                result = json.loads(out.splitlines()[-1]) if out else None
+            except Exception:                                 # noqa: BLE001
+                result = None
+            if result is None:
+                tail = (cp.stderr or out or '')[-400:].strip()
+                return self._send_json(200, {'pass': False, 'score': 0,
+                                             'message': '判分器没有正常返回（退出码 %s）。\n%s'
+                                                        % (cp.returncode, tail)})
+            self._send_json(200, result)
+        except subprocess.TimeoutExpired:
+            self._send_json(200, {'pass': False, 'score': 0,
+                                  'message': '判分超时（%d 秒）。你的代码里可能有阻塞调用——'
+                                             'sleep、死循环，或者自己起了 uvicorn。判分只 import 你的 app，'
+                                             '请求由判分器来发。' % GRADE_TIMEOUT})
+        except Exception as exc:                              # noqa: BLE001
+            self._send_json(500, {'pass': False, 'score': 0, 'message': '判分服务异常：%s' % exc})
+        finally:
+            GRADE_LOCK.release()
+            if tmp:
+                try:
+                    os.remove(tmp)
+                except OSError:
+                    pass
 
     def end_headers(self):
         path = self.path.split('?')[0].split('#')[0]
